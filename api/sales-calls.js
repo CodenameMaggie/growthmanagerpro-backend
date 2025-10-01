@@ -25,29 +25,151 @@ module.exports = async (req, res) => {
 
       const stats = {
         totalDeals: data.length,
-        pipelineValue: data.reduce((sum, d) => sum + (parseFloat(d.deal_value) || 0), 0),
-        avgDealSize: data.length > 0 ? data.reduce((sum, d) => sum + (parseFloat(d.deal_value) || 0), 0) / data.length : 0,
-        weightedValue: data.reduce((sum, d) => sum + ((parseFloat(d.deal_value) || 0) * (d.probability || 0) / 100), 0)
+        scheduledCalls: data.filter(c => c.call_status === 'scheduled').length,
+        closedDeals: data.filter(c => c.call_status === 'closed').length,
+        pipelineValue: data.reduce((sum, c) => sum + (parseFloat(c.deal_value) || 0), 0)
       };
 
       return res.status(200).json({
         success: true,
         data: {
-          deals: data.map(deal => ({
-            id: deal.id,
-            contactName: deal.contact_name,
-            company: deal.company,
-            callDate: deal.call_date,
-            dealValue: deal.deal_value,
-            stage: deal.stage,
-            probability: deal.probability,
-            expectedCloseDate: deal.expected_close_date,
-            notes: deal.notes,
-            created: deal.created_at
+          calls: data.map(call => ({
+            id: call.id,
+            prospectName: call.prospect_name,
+            company: call.company,
+            email: call.email,
+            callDate: call.call_date,
+            callStatus: call.call_status,
+            dealValue: call.deal_value,
+            notes: call.notes,
+            created: call.created_at
           })),
           stats
         },
         timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Error:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  if (req.method === 'POST') {
+    try {
+      const { prospectName, company, email, callDate, callStatus, dealValue, notes } = req.body;
+
+      if (!prospectName || !email) {
+        return res.status(400).json({
+          success: false,
+          error: 'Prospect name and email are required'
+        });
+      }
+
+      const { data, error } = await supabase
+        .from('sales_calls')
+        .insert([{
+          prospect_name: prospectName,
+          company: company || null,
+          email: email,
+          call_date: callDate || null,
+          call_status: callStatus || 'scheduled',
+          deal_value: dealValue || 0,
+          notes: notes || null
+        }])
+        .select();
+
+      if (error) throw error;
+
+      return res.status(201).json({
+        success: true,
+        data: data[0],
+        message: 'Sales call created successfully'
+      });
+
+    } catch (error) {
+      console.error('Error:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  if (req.method === 'PUT') {
+    try {
+      const { id, prospectName, company, email, callDate, callStatus, dealValue, notes } = req.body;
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Call ID is required'
+        });
+      }
+
+      const updateData = {};
+      if (prospectName) updateData.prospect_name = prospectName;
+      if (company !== undefined) updateData.company = company;
+      if (email) updateData.email = email;
+      if (callDate !== undefined) updateData.call_date = callDate;
+      if (callStatus) updateData.call_status = callStatus;
+      if (dealValue !== undefined) updateData.deal_value = dealValue;
+      if (notes !== undefined) updateData.notes = notes;
+
+      const { data, error } = await supabase
+        .from('sales_calls')
+        .update(updateData)
+        .eq('id', id)
+        .select();
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: 'Call not found'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: data[0],
+        message: 'Sales call updated successfully'
+      });
+
+    } catch (error) {
+      console.error('Error:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  if (req.method === 'DELETE') {
+    try {
+      const { id } = req.body;
+
+      if (!id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Call ID is required'
+        });
+      }
+
+      const { error } = await supabase
+        .from('sales_calls')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      return res.status(200).json({
+        success: true,
+        message: 'Sales call deleted successfully'
       });
 
     } catch (error) {
