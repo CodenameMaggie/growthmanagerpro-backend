@@ -75,4 +75,73 @@ module.exports = async (req, res) => {
         total: pipeline.length,
         qualified: pipeline.filter(p => p.stage === 'Qualified').length,
         proposal: pipeline.filter(p => p.stage === 'Proposal').length,
-        negotiation: pipeline.filter(p => p.stage === 'Neg
+        negotiation: pipeline.filter(p => p.stage === 'Negotiation').length
+      };
+
+      // Deals Stats
+      const deals = dealsData.data || [];
+      const wonDeals = deals.filter(d => d.deal_status === 'won');
+      const dealsStats = {
+        total: deals.length,
+        won: wonDeals.length,
+        revenue: wonDeals.reduce((sum, d) => sum + (parseFloat(d.deal_value) || 0), 0),
+        avgDealSize: wonDeals.length > 0 
+          ? wonDeals.reduce((sum, d) => sum + (parseFloat(d.deal_value) || 0), 0) / wonDeals.length
+          : 0
+      };
+
+      // Contacts Stats
+      const contacts = contactsData.data || [];
+      const contactsStats = {
+        total: contacts.length,
+        leads: contacts.filter(c => c.status === 'Lead').length,
+        prospects: contacts.filter(c => c.status === 'Prospect').length,
+        customers: contacts.filter(c => c.status === 'Customer').length
+      };
+
+      // Campaigns Stats
+      const campaigns = campaignsData.data || [];
+      const campaignsStats = {
+        total: campaigns.length,
+        active: campaigns.filter(c => c.campaign_status === 'active').length,
+        totalLeads: campaigns.reduce((sum, c) => sum + (parseInt(c.leads_generated) || 0), 0)
+      };
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          sprints: sprintStats,
+          discovery: discoveryStats,
+          sales: salesStats,
+          pipeline: pipelineStats,
+          deals: dealsStats,
+          contacts: contactsStats,
+          campaigns: campaignsStats,
+          summary: {
+            totalRevenue: dealsStats.revenue,
+            totalCalls: discoveryStats.total + salesStats.total,
+            qualificationRate: discoveryStats.total > 0 
+              ? ((discoveryStats.qualified / discoveryStats.total) * 100).toFixed(0)
+              : 0,
+            pipelineMovement: pipeline.filter(p => {
+              const date = new Date(p.updated_at || p.created_at);
+              const weekAgo = new Date();
+              weekAgo.setDate(weekAgo.getDate() - 7);
+              return date >= weekAgo;
+            }).length
+          }
+        },
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('Error:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+};
