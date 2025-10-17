@@ -1,10 +1,10 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
-const zoomClientId = process.env.ZOOM_CLIENT_ID;
-const zoomClientSecret = process.env.ZOOM_CLIENT_SECRET;
-const zoomWebhookSecret = process.env.ZOOM_WEBHOOK_SECRET;
+const supabaseUrl = https://tatbblgwhmyzovsyhzyb.supabase.co;
+const supabaseKey = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhdGJibGd3aG15em92c3loenliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxOTQ1NDMsImV4cCI6MjA3NDc3MDU0M30.HUBWBd0Wtdl5rD1G8XSqJe8rYnpMaOXnJiuwHTHyZMo;
+const zoomClientId = GB6HVtuxTPmWqvjS8z5z1w;
+const zoomClientSecret = XM5VWDJtQVRokWAlr3nlg4zKGuOlhE23;
+const zoomWebhookSecret = XM5VWDJtQVRokWAlr3nlg4zKGuOlhE23;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
