@@ -10,29 +10,81 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
  * Zoom Webhook Handler
- * Listens for "recording.completed" events from Zoom
- * Downloads transcript and triggers AI analysis
+ * Handles validation challenge and recording.completed events
  */
 module.exports = async (req, res) => {
-  // Handle Zoom webhook verification
-  if (req.method === 'POST' && req.headers['authorization'] === zoomWebhookSecret) {
-    const event = req.body;
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Handle OPTIONS request
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
-    console.log('[Zoom Webhook] Event received:', event.event);
+  // Handle GET request (for testing)
+  if (req.method === 'GET') {
+    return res.status(200).json({ 
+      status: 'ok', 
+      message: 'Zoom webhook endpoint is running',
+      timestamp: new Date().toISOString()
+    });
+  }
 
-   // Verify webhook signature (security) - TEMPORARILY DISABLED
-// const isValid = verifyZoomWebhook(req.headers, req.body, zoomWebhookSecret);
-// if (!isValid) {
-//   return res.status(401).json({ error: 'Invalid webhook signature' });
-// }
-console.log('[Zoom Webhook] Signature verification temporarily disabled for setup');
+  // Handle POST request (Zoom events)
+  if (req.method === 'POST') {
+    try {
+      const event = req.body;
 
-    // Handle recording completion event
-    if (event.event === 'recording.completed') {
-      try {
-        const meetingData = event.payload.object;
+      console.log('[Zoom Webhook] Event received:', JSON.stringify(event, null, 2));
+
+      // ========================================
+      // HANDLE ZOOM VALIDATION CHALLENGE
+      // ========================================
+      // When you first add the webhook URL in Zoom, it sends a validation request
+      if (event.event === 'endpoint.url_validation') {
+        const plainToken = event.payload.plainToken;
         
-        console.log('[Zoom Webhook] Recording completed for meeting:', meetingData.id);
+        if (!plainToken) {
+          console.log('[Zoom Webhook] No plainToken in validation request');
+          return res.status(400).json({ error: 'No plainToken provided' });
+        }
+
+        // Create encrypted token (Zoom expects this)
+        const crypto = require('crypto');
+        const encryptedToken = crypto
+          .createHmac('sha256', zoomWebhookSecret || 'temp')
+          .update(plainToken)
+          .digest('hex');
+
+        console.log('[Zoom Webhook] Validation challenge received and responded');
+        
+        return res.status(200).json({
+          plainToken: plainToken,
+          encryptedToken: encryptedToken
+        });
+      }
+
+      // ========================================
+      // VERIFY WEBHOOK SIGNATURE (for real events)
+      // ========================================
+      // Skip verification during initial setup
+      if (zoomWebhookSecret && event.event !== 'endpoint.url_validation') {
+        const isValid = verifyZoomWebhook(req.headers, req.body, zoomWebhookSecret);
+        if (!isValid) {
+          console.log('[Zoom Webhook] Invalid signature');
+          return res.status(401).json({ error: 'Invalid webhook signature' });
+        }
+      }
+
+      // ========================================
+      // HANDLE RECORDING COMPLETED EVENT
+      // ========================================
+      if (event.event === 'recording.completed') {
+        console.log('[Zoom Webhook] Recording completed event received');
+        
+        const meetingData = event.payload.object;
         
         // Extract meeting information
         const meetingInfo = {
@@ -41,8 +93,10 @@ console.log('[Zoom Webhook] Signature verification temporarily disabled for setu
           start_time: meetingData.start_time,
           duration: meetingData.duration,
           host_id: meetingData.host_id,
-          recording_files: meetingData.recording_files
+          recording_files: meetingData.recording_files || []
         };
+
+        console.log('[Zoom Webhook] Meeting info:', meetingInfo);
 
         // Find the recording file and transcript
         const recordingFile = meetingInfo.recording_files.find(f => f.file_type === 'MP4');
@@ -53,16 +107,20 @@ console.log('[Zoom Webhook] Signature verification temporarily disabled for setu
           return res.status(200).json({ message: 'No recording file' });
         }
 
-        // Download transcript from Zoom
+        // Download transcript from Zoom (if available)
         let transcriptText = '';
-        if (transcriptFile) {
-          transcriptText = await downloadZoomTranscript(transcriptFile.download_url);
+        if (transcriptFile && transcriptFile.download_url) {
+          try {
+            transcriptText = await downloadZoomTranscript(transcriptFile.download_url);
+            console.log('[Zoom Webhook] Transcript downloaded successfully');
+          } catch (error) {
+            console.error('[Zoom Webhook] Error downloading transcript:', error);
+          }
         }
 
         // Extract guest name from meeting topic
-        // Assumes format like "Podcast with John Smith" or "John Smith - Podcast"
         const guestName = extractGuestName(meetingInfo.topic);
-        const guestEmail = extractGuestEmail(meetingData.participant?.email || '');
+        const guestEmail = meetingData.participant?.email || '';
 
         // Create or update podcast interview record
         const { data: interview, error: dbError } = await supabase
@@ -72,22 +130,24 @@ console.log('[Zoom Webhook] Signature verification temporarily disabled for setu
             guest_name: guestName,
             guest_email: guestEmail || null,
             scheduled_date: meetingInfo.start_time,
-            status: 'completed',
+            interview_status: 'completed',
             zoom_recording_url: recordingFile.download_url,
-            transcript_text: transcriptText,
+            transcript_text: transcriptText || null,
             meeting_duration: meetingInfo.duration,
-            interview_status: 'analyzing' // Will be updated after AI analysis
           }], {
             onConflict: 'zoom_meeting_id'
           })
           .select();
 
-        if (dbError) throw dbError;
+        if (dbError) {
+          console.error('[Zoom Webhook] Database error:', dbError);
+          throw dbError;
+        }
 
         console.log('[Zoom Webhook] Interview record created:', interview[0].id);
 
-        // Trigger AI analysis (async - don't wait)
-        if (transcriptText) {
+        // Trigger AI analysis if transcript exists
+        if (transcriptText && interview && interview[0]) {
           triggerAIAnalysis(interview[0].id, transcriptText).catch(err => {
             console.error('[Zoom Webhook] AI analysis trigger failed:', err);
           });
@@ -96,20 +156,21 @@ console.log('[Zoom Webhook] Signature verification temporarily disabled for setu
         return res.status(200).json({ 
           success: true, 
           message: 'Recording processed',
-          interview_id: interview[0].id
-        });
-
-      } catch (error) {
-        console.error('[Zoom Webhook] Error processing recording:', error);
-        return res.status(500).json({ 
-          success: false, 
-          error: error.message 
+          interview_id: interview[0]?.id
         });
       }
-    }
 
-    // Handle other events
-    return res.status(200).json({ message: 'Event received' });
+      // Handle other events
+      console.log('[Zoom Webhook] Unhandled event type:', event.event);
+      return res.status(200).json({ message: 'Event received' });
+
+    } catch (error) {
+      console.error('[Zoom Webhook] Error processing request:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: error.message 
+      });
+    }
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
@@ -135,10 +196,8 @@ function verifyZoomWebhook(headers, body, secret) {
  */
 async function downloadZoomTranscript(downloadUrl) {
   try {
-    // Get Zoom access token
     const accessToken = await getZoomAccessToken();
     
-    // Download transcript file
     const response = await fetch(downloadUrl, {
       headers: {
         'Authorization': `Bearer ${accessToken}`
@@ -150,8 +209,6 @@ async function downloadZoomTranscript(downloadUrl) {
     }
 
     const transcriptData = await response.text();
-    
-    // Parse VTT format to plain text
     const plainText = parseVTTTranscript(transcriptData);
     
     return plainText;
@@ -166,7 +223,7 @@ async function downloadZoomTranscript(downloadUrl) {
  */
 async function getZoomAccessToken() {
   const tokenUrl = 'https://zoom.us/oauth/token';
-  const credentials = Buffer.from(`${zoomClientId}:${zoomClientSecret}`).toString('base64');
+  const credentials = Buffer.from(`${process.env.ZOOM_CLIENT_ID}:${process.env.ZOOM_CLIENT_SECRET}`).toString('base64');
   
   const response = await fetch(tokenUrl, {
     method: 'POST',
@@ -174,7 +231,7 @@ async function getZoomAccessToken() {
       'Authorization': `Basic ${credentials}`,
       'Content-Type': 'application/x-www-form-urlencoded'
     },
-    body: 'grant_type=account_credentials&account_id=' + process.env.ZOOM_ACCOUNT_ID
+    body: `grant_type=account_credentials&account_id=${process.env.ZOOM_ACCOUNT_ID}`
   });
 
   const data = await response.json();
@@ -185,14 +242,12 @@ async function getZoomAccessToken() {
  * Parse VTT transcript format to plain text
  */
 function parseVTTTranscript(vttText) {
-  // Remove VTT headers and timestamps
   const lines = vttText.split('\n');
   const textLines = [];
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     
-    // Skip VTT headers, timestamps, and empty lines
     if (line && 
         !line.startsWith('WEBVTT') && 
         !line.includes('-->') && 
@@ -208,11 +263,6 @@ function parseVTTTranscript(vttText) {
  * Extract guest name from meeting topic
  */
 function extractGuestName(topic) {
-  // Common patterns:
-  // "Podcast with John Smith"
-  // "John Smith - Podcast Interview"
-  // "Interview: John Smith"
-  
   const patterns = [
     /with\s+([A-Z][a-z]+\s+[A-Z][a-z]+)/i,
     /^([A-Z][a-z]+\s+[A-Z][a-z]+)\s*[-:]/,
@@ -226,25 +276,16 @@ function extractGuestName(topic) {
     }
   }
   
-  // Fallback: return topic if no pattern matches
   return topic.replace(/podcast|interview/gi, '').trim() || 'Unknown Guest';
 }
 
 /**
- * Extract guest email
- */
-function extractGuestEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email) ? email : null;
-}
-
-/**
- * Trigger AI analysis (async call to analysis endpoint)
+ * Trigger AI analysis
  */
 async function triggerAIAnalysis(interviewId, transcript) {
   const analysisUrl = process.env.VERCEL_URL 
     ? `https://${process.env.VERCEL_URL}/api/ai-analyze-podcast`
-    : 'http://localhost:3000/api/ai-analyze-podcast';
+    : 'https://growth-manager-pro.vercel.app/api/ai-analyze-podcast';
 
   try {
     const response = await fetch(analysisUrl, {
