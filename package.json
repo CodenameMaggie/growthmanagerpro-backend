@@ -2,7 +2,6 @@
   "name": "growthmanagerpro-backend",
   "version": "1.0.0",
   "description": "Growth Manager Pro Backend API",
-  "main": "api/index.js",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0"
   }
