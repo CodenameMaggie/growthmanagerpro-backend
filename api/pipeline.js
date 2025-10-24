@@ -2,187 +2,162 @@ const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_ANON_KEY;
-
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'GET') {
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     try {
-      const { data, error } = await supabase
-        .from('pipeline')
-        .select('*')
-        .order('expected_close_date', { ascending: true });
+        // GET - Fetch all pipeline deals with stats
+        if (req.method === 'GET') {
+            const { data: deals, error } = await supabase
+                .from('pipeline')
+                .select(`
+                    *,
+                    contacts (
+                        id,
+                        name,
+                        email,
+                        company
+                    )
+                `)
+                .order('created_at', { ascending: false });
 
-      if (error) throw error;
+            if (error) throw error;
 
-      const stats = {
-        totalDeals: data.length,
-        pipelineValue: data.reduce((sum, d) => sum + (parseFloat(d.deal_value) || 0), 0),
-        weightedValue: data.reduce((sum, d) => sum + ((parseFloat(d.deal_value) || 0) * (parseFloat(d.probability) || 0) / 100), 0),
-        avgDealSize: data.length > 0 ? data.reduce((sum, d) => sum + (parseFloat(d.deal_value) || 0), 0) / data.length : 0
-      };
+            // Enrich deals with contact data
+            const enrichedDeals = deals.map(deal => ({
+                ...deal,
+                company: deal.contacts?.company || 'No company',
+                contactName: deal.contacts?.name || 'Unknown'
+            }));
 
-      return res.status(200).json({
-        success: true,
-        data: {
-          deals: data.map(deal => ({
-            id: deal.id,
-            dealName: deal.deal_name,
-            contactName: deal.contact_name,
-            company: deal.company,
-            value: deal.deal_value,
-            stage: deal.deal_stage,
-            probability: deal.probability,
-            expectedClose: deal.expected_close_date,
-            notes: deal.notes,
-            created: deal.created_at
-          })),
-          stats
-        },
-        timestamp: new Date().toISOString()
-      });
+            // Calculate stats
+            const totalValue = deals.reduce((sum, d) => sum + (parseFloat(d.value) || 0), 0);
+            const activeDeals = deals.filter(d => d.stage !== 'lost').length;
+            const avgDealSize = activeDeals > 0 ? totalValue / activeDeals : 0;
+            
+            const closedDeals = deals.filter(d => d.stage === 'closed' && d.status === 'won').length;
+            const advancedDeals = deals.filter(d => 
+                ['proposal', 'negotiation', 'closed'].includes(d.stage)
+            ).length;
+            const winRate = advancedDeals > 0 ? (closedDeals / advancedDeals * 100) : 0;
+
+            // Count automation stats
+            const autoCreatedCount = deals.filter(d => d.auto_created === true).length;
+            const manualCount = deals.filter(d => !d.auto_created).length;
+            const fromPodcast = deals.filter(d => d.source_type === 'sales_call').length;
+
+            return res.status(200).json({
+                success: true,
+                data: {
+                    deals: enrichedDeals,
+                    stats: {
+                        totalValue,
+                        activeDeals,
+                        avgDealSize,
+                        winRate,
+                        autoCreatedCount,
+                        manualCount,
+                        fromPodcast
+                    }
+                }
+            });
+        }
+
+        // POST - Create new pipeline deal (manual or automated)
+        if (req.method === 'POST') {
+            const dealData = req.body;
+
+            // If not specified, assume manual entry
+            if (dealData.auto_created === undefined) {
+                dealData.auto_created = false;
+                dealData.source_type = dealData.source_type || 'manual';
+            }
+
+            const { data: newDeal, error } = await supabase
+                .from('pipeline')
+                .insert([dealData])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('[Pipeline] ✅ Deal created:', newDeal.id, 
+                newDeal.auto_created ? '(Auto-created)' : '(Manual)');
+
+            return res.status(201).json({
+                success: true,
+                data: newDeal
+            });
+        }
+
+        // PUT - Update pipeline deal
+        if (req.method === 'PUT') {
+            const { id, ...updateData } = req.body;
+
+            if (!id) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Deal ID is required'
+                });
+            }
+
+            const { data: updatedDeal, error } = await supabase
+                .from('pipeline')
+                .update(updateData)
+                .eq('id', id)
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            return res.status(200).json({
+                success: true,
+                data: updatedDeal
+            });
+        }
+
+        // DELETE - Delete pipeline deal
+        if (req.method === 'DELETE') {
+            const { id } = req.body;
+
+            if (!id) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Deal ID is required'
+                });
+            }
+
+            const { error } = await supabase
+                .from('pipeline')
+                .delete()
+                .eq('id', id);
+
+            if (error) throw error;
+
+            return res.status(200).json({
+                success: true,
+                message: 'Deal deleted successfully'
+            });
+        }
+
+        return res.status(405).json({
+            success: false,
+            error: 'Method not allowed'
+        });
 
     } catch (error) {
-      console.error('Error:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  }
-
-  if (req.method === 'POST') {
-    try {
-      const { dealName, contactName, company, value, stage, probability, expectedClose, notes } = req.body;
-
-      if (!dealName || !contactName) {
-        return res.status(400).json({
-          success: false,
-          error: 'Deal name and contact name are required'
+        console.error('[Pipeline] Error:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message
         });
-      }
-
-      const { data, error } = await supabase
-        .from('pipeline')
-        .insert([{
-          deal_name: dealName,
-          contact_name: contactName,
-          company: company || null,
-          deal_value: value || 0,
-          deal_stage: stage || 'discovery',
-          probability: probability || 0,
-          expected_close_date: expectedClose || null,
-          notes: notes || null
-        }])
-        .select();
-
-      if (error) throw error;
-
-      return res.status(201).json({
-        success: true,
-        data: data[0],
-        message: 'Deal created successfully'
-      });
-
-    } catch (error) {
-      console.error('Error:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message
-      });
     }
-  }
-
-  if (req.method === 'PUT') {
-    try {
-      const { id, dealName, contactName, company, value, stage, probability, expectedClose, notes } = req.body;
-
-      if (!id) {
-        return res.status(400).json({
-          success: false,
-          error: 'Deal ID is required'
-        });
-      }
-
-      const updateData = {};
-      if (dealName) updateData.deal_name = dealName;
-      if (contactName) updateData.contact_name = contactName;
-      if (company !== undefined) updateData.company = company;
-      if (value !== undefined) updateData.deal_value = value;
-      if (stage) updateData.deal_stage = stage;
-      if (probability !== undefined) updateData.probability = probability;
-      if (expectedClose !== undefined) updateData.expected_close_date = expectedClose;
-      if (notes !== undefined) updateData.notes = notes;
-
-      const { data, error } = await supabase
-        .from('pipeline')
-        .update(updateData)
-        .eq('id', id)
-        .select();
-
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Deal not found'
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-        data: data[0],
-        message: 'Deal updated successfully'
-      });
-
-    } catch (error) {
-      console.error('Error:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  }
-
-  if (req.method === 'DELETE') {
-    try {
-      const { id } = req.body;
-
-      if (!id) {
-        return res.status(400).json({
-          success: false,
-          error: 'Deal ID is required'
-        });
-      }
-
-      const { error } = await supabase
-        .from('pipeline')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      return res.status(200).json({
-        success: true,
-        message: 'Deal deleted successfully'
-      });
-
-    } catch (error) {
-      console.error('Error:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  }
-
-  return res.status(405).json({ error: 'Method not allowed' });
 };
