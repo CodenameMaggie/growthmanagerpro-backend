@@ -1,9 +1,62 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = https://tatbblgwhmyzovsyhzyb.supabase.co;
-const supabaseKey = eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhdGJibGd3aG15em92c3loenliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkxOTQ1NDMsImV4cCI6MjA3NDc3MDU0M30.HUBWBd0Wtdl5rD1G8XSqJe8rYnpMaOXnJiuwHTHyZMo;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Helper function to auto-create discovery call when qualified
+async function autoCreateDiscoveryCall(interview) {
+  try {
+    // Check if already created
+    if (interview.discovery_call_created) {
+      console.log(`[Auto-Create] Discovery call already exists for interview ${interview.id}`);
+      return null;
+    }
+
+    // Check qualification
+    if (!interview.qualified_for_discovery || interview.overall_score < 35) {
+      console.log(`[Auto-Create] Interview ${interview.id} not qualified (score: ${interview.overall_score})`);
+      return null;
+    }
+
+    console.log(`[Auto-Create] Creating discovery call for ${interview.guest_name} (score: ${interview.overall_score})`);
+
+    // Create discovery call
+    const { data: discoveryCall, error: createError } = await supabase
+      .from('discovery_calls')
+      .insert([{
+        contact_name: interview.guest_name,
+        company: interview.company,
+        email: interview.guest_email,
+        call_status: 'scheduled',
+        call_source: 'podcast_qualified',
+        notes: `Auto-created from podcast interview. AI Score: ${interview.overall_score}/50. ${interview.ai_analysis || ''}`
+      }])
+      .select()
+      .single();
+
+    if (createError) throw createError;
+
+    // Update interview to mark discovery call as created
+    const { error: updateError } = await supabase
+      .from('podcast_interviews')
+      .update({
+        discovery_call_created: true,
+        discovery_call_id: discoveryCall.id
+      })
+      .eq('id', interview.id);
+
+    if (updateError) throw updateError;
+
+    console.log(`[Auto-Create] ✅ Discovery call ${discoveryCall.id} created for interview ${interview.id}`);
+    return discoveryCall;
+
+  } catch (error) {
+    console.error('[Auto-Create] Error creating discovery call:', error);
+    return null;
+  }
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -178,7 +231,13 @@ module.exports = async (req, res) => {
         scheduledDate, 
         status, 
         notes,
-        zoomMeetingId 
+        zoomMeetingId,
+        overallScore,
+        introScore,
+        questionsFlowScore,
+        closeNextStepsScore,
+        aiAnalysis,
+        qualifiedForDiscovery
       } = req.body;
 
       if (!id) {
@@ -206,6 +265,19 @@ module.exports = async (req, res) => {
       if (status !== undefined) updateData.interview_status = status;
       if (notes !== undefined) updateData.notes = notes;
       if (zoomMeetingId !== undefined) updateData.zoom_meeting_id = zoomMeetingId;
+      
+      // AI scoring fields
+      if (overallScore !== undefined) updateData.overall_score = overallScore;
+      if (introScore !== undefined) updateData.intro_score = introScore;
+      if (questionsFlowScore !== undefined) updateData.questions_flow_score = questionsFlowScore;
+      if (closeNextStepsScore !== undefined) updateData.close_next_steps_score = closeNextStepsScore;
+      if (aiAnalysis !== undefined) updateData.ai_analysis = aiAnalysis;
+      if (qualifiedForDiscovery !== undefined) updateData.qualified_for_discovery = qualifiedForDiscovery;
+      
+      // Set analyzed_at timestamp if AI scores are being updated
+      if (overallScore !== undefined) {
+        updateData.analyzed_at = new Date().toISOString();
+      }
 
       const { data, error } = await supabase
         .from('podcast_interviews')
@@ -222,23 +294,35 @@ module.exports = async (req, res) => {
         });
       }
 
-      const updatedInterview = {
-        id: data[0].id,
-        guestName: data[0].guest_name,
-        guestEmail: data[0].guest_email,
-        company: data[0].company,
-        jobTitle: data[0].job_title,
-        scheduledDate: data[0].scheduled_date,
-        status: data[0].interview_status,
-        overallScore: data[0].overall_score,
-        qualifiedForDiscovery: data[0].qualified_for_discovery,
-        created: data[0].created_at
-      };
+      const updatedInterview = data[0];
+
+      // 🚀 AUTO-CREATE DISCOVERY CALL if qualified
+      let discoveryCallCreated = null;
+      if (updatedInterview.qualified_for_discovery && updatedInterview.overall_score >= 35) {
+        discoveryCallCreated = await autoCreateDiscoveryCall(updatedInterview);
+      }
 
       return res.status(200).json({
         success: true,
-        data: updatedInterview,
-        message: 'Interview updated successfully'
+        data: {
+          id: updatedInterview.id,
+          guestName: updatedInterview.guest_name,
+          guestEmail: updatedInterview.guest_email,
+          company: updatedInterview.company,
+          jobTitle: updatedInterview.job_title,
+          scheduledDate: updatedInterview.scheduled_date,
+          status: updatedInterview.interview_status,
+          overallScore: updatedInterview.overall_score,
+          qualifiedForDiscovery: updatedInterview.qualified_for_discovery,
+          discoveryCallCreated: updatedInterview.discovery_call_created,
+          discoveryCallId: updatedInterview.discovery_call_id,
+          created: updatedInterview.created_at
+        },
+        message: 'Interview updated successfully',
+        automation: discoveryCallCreated ? {
+          discoveryCallCreated: true,
+          discoveryCallId: discoveryCallCreated.id
+        } : null
       });
 
     } catch (error) {
