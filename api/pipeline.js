@@ -38,6 +38,24 @@ module.exports = async (req, res) => {
                 contactName: deal.contacts?.name || 'Unknown'
             }));
 
+            // 🔧 TRANSFORM TO CAMELCASE - Match HTML expectations
+            const transformedDeals = enrichedDeals.map(deal => ({
+                id: deal.id,
+                name: deal.name,
+                company: deal.company,              // Already enriched ✅
+                contactName: deal.contactName,      // Already enriched ✅
+                contactId: deal.contact_id,
+                value: deal.value,
+                stage: deal.stage,
+                status: deal.status,
+                autoCreated: deal.auto_created,
+                sourceType: deal.source_type,
+                salesCallId: deal.sales_call_id,
+                expectedCloseDate: deal.expected_close_date,
+                notes: deal.notes,
+                createdAt: deal.created_at
+            }));
+
             // Calculate stats
             const totalValue = deals.reduce((sum, d) => sum + (parseFloat(d.value) || 0), 0);
             const activeDeals = deals.filter(d => d.stage !== 'lost').length;
@@ -57,7 +75,7 @@ module.exports = async (req, res) => {
             return res.status(200).json({
                 success: true,
                 data: {
-                    deals: enrichedDeals,
+                    deals: transformedDeals,  // ✅ Use camelCase transformed data
                     stats: {
                         totalValue,
                         activeDeals,
