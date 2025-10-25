@@ -49,8 +49,8 @@ module.exports = async (req, res) => {
       const leadsData = await leadsResponse.json();
       console.log('[Instantly Sync] Leads received:', JSON.stringify(leadsData).substring(0, 200));
 
-      // Extract leads array from response
-      const leads = leadsData.data || [];
+      // Extract leads array from response - API uses 'items' not 'data'
+      const leads = leadsData.items || [];
       console.log('[Instantly Sync] Total leads collected:', leads.length);
 
       let syncedCount = 0;
