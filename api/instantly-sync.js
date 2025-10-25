@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
           'Authorization': `Bearer ${instantlyApiKey}`
         },
         body: JSON.stringify({
-          limit: 200 // Fetch up to 1000 leads
+          limit: 100 // Fetch up to 100 leads
         })
       });
 
