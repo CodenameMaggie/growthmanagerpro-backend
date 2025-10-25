@@ -17,68 +17,49 @@ module.exports = async (req, res) => {
 
   if (req.method === 'POST' || req.method === 'GET') {
     try {
-      console.log('[Instantly Sync] Starting sync from Instantly.ai...');
+      console.log('[Instantly Sync] Starting sync from Instantly.ai API V2...');
 
       // Check if API key exists
       if (!instantlyApiKey) {
         throw new Error('INSTANTLY_API_KEY not configured');
       }
 
-      // Fetch campaigns first to get leads from each campaign
-      // Instantly API typically uses api_key as query parameter
-      const campaignsUrl = `https://api.instantly.ai/api/v1/campaign/list?api_key=${instantlyApiKey}`;
+      // Fetch leads using Instantly API V2
+      // API V2 uses Bearer token authentication and POST method
+      const leadsUrl = 'https://api.instantly.ai/api/v2/leads/list';
       
-      console.log('[Instantly Sync] Fetching campaigns...');
-      const campaignsResponse = await fetch(campaignsUrl, {
-        method: 'GET',
+      console.log('[Instantly Sync] Fetching leads from API V2...');
+      const leadsResponse = await fetch(leadsUrl, {
+        method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${instantlyApiKey}`
+        },
+        body: JSON.stringify({
+          limit: 1000 // Fetch up to 1000 leads
+        })
       });
 
-      if (!campaignsResponse.ok) {
-        const errorText = await campaignsResponse.text();
-        console.error('[Instantly Sync] Campaigns API error:', campaignsResponse.status, errorText);
-        throw new Error(`Instantly API error: ${campaignsResponse.status} - ${errorText}`);
+      if (!leadsResponse.ok) {
+        const errorText = await leadsResponse.text();
+        console.error('[Instantly Sync] API V2 error:', leadsResponse.status, errorText);
+        throw new Error(`Instantly API error: ${leadsResponse.status} - ${errorText}`);
       }
 
-      const campaignsData = await campaignsResponse.json();
-      console.log('[Instantly Sync] Campaigns received:', JSON.stringify(campaignsData).substring(0, 200));
+      const leadsData = await leadsResponse.json();
+      console.log('[Instantly Sync] Leads received:', JSON.stringify(leadsData).substring(0, 200));
 
-      // Get all leads across all campaigns
-      let allLeads = [];
-      
-      // If we got campaigns, fetch leads from each
-      if (campaignsData && Array.isArray(campaignsData)) {
-        for (const campaign of campaignsData) {
-          try {
-            const leadsUrl = `https://api.instantly.ai/api/v1/campaign/get/leads?api_key=${instantlyApiKey}&campaign_id=${campaign.id}`;
-            const leadsResponse = await fetch(leadsUrl);
-            
-            if (leadsResponse.ok) {
-              const leadsData = await leadsResponse.json();
-              if (Array.isArray(leadsData)) {
-                allLeads = allLeads.concat(leadsData.map(lead => ({
-                  ...lead,
-                  campaign_name: campaign.name
-                })));
-              }
-            }
-          } catch (err) {
-            console.error('[Instantly Sync] Error fetching leads for campaign:', campaign.id, err);
-          }
-        }
-      }
-
-      console.log('[Instantly Sync] Total leads collected:', allLeads.length);
+      // Extract leads array from response
+      const leads = leadsData.data || [];
+      console.log('[Instantly Sync] Total leads collected:', leads.length);
 
       let syncedCount = 0;
       let errorCount = 0;
       const errors = [];
 
-      for (const lead of allLeads) {
+      for (const lead of leads) {
         try {
-          // Map Instantly fields to our Supabase contacts structure
+          // Map Instantly V2 fields to our Supabase contacts structure
           const contactData = {
             email: lead.email,
             name: lead.first_name && lead.last_name 
@@ -86,11 +67,11 @@ module.exports = async (req, res) => {
               : lead.first_name || lead.last_name || lead.email.split('@')[0],
             company: lead.company_name || lead.company || null,
             phone: lead.phone || null,
-            status: lead.status || 'new',
+            status: lead.interest_status || 'new',
             source: 'instantly',
             instantly_campaign: lead.campaign_name || null,
-            notes: lead.custom_variables ? JSON.stringify(lead.custom_variables) : null,
-            last_contact_date: lead.last_replied_at || lead.updated_at || new Date().toISOString()
+            notes: lead.variables ? JSON.stringify(lead.variables) : null,
+            last_contact_date: lead.last_replied_at || lead.timestamp_updated || new Date().toISOString()
           };
 
           // Upsert (insert or update if exists) based on email
@@ -121,7 +102,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({
         success: true,
         data: {
-          total_leads: allLeads.length,
+          total_leads: leads.length,
           synced: syncedCount,
           errors: errorCount,
           error_details: errors.length > 0 ? errors.slice(0, 5) : []
