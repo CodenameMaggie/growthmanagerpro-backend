@@ -24,31 +24,59 @@ module.exports = async (req, res) => {
         throw new Error('INSTANTLY_API_KEY not configured');
       }
 
-      // Fetch leads from Instantly.ai
-      // Instantly API endpoint: https://api.instantly.ai/api/v1/lead/list
-      const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/lead/list', {
+      // Fetch campaigns first to get leads from each campaign
+      // Instantly API typically uses api_key as query parameter
+      const campaignsUrl = `https://api.instantly.ai/api/v1/campaign/list?api_key=${instantlyApiKey}`;
+      
+      console.log('[Instantly Sync] Fetching campaigns...');
+      const campaignsResponse = await fetch(campaignsUrl, {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${instantlyApiKey}`
+          'Content-Type': 'application/json'
         }
       });
 
-      if (!instantlyResponse.ok) {
-        throw new Error(`Instantly API error: ${instantlyResponse.status}`);
+      if (!campaignsResponse.ok) {
+        const errorText = await campaignsResponse.text();
+        console.error('[Instantly Sync] Campaigns API error:', campaignsResponse.status, errorText);
+        throw new Error(`Instantly API error: ${campaignsResponse.status} - ${errorText}`);
       }
 
-      const instantlyData = await instantlyResponse.json();
-      console.log('[Instantly Sync] Received leads from Instantly:', instantlyData.length || 0);
+      const campaignsData = await campaignsResponse.json();
+      console.log('[Instantly Sync] Campaigns received:', JSON.stringify(campaignsData).substring(0, 200));
 
-      // Map Instantly leads to our contacts format
-      const leads = Array.isArray(instantlyData) ? instantlyData : [];
+      // Get all leads across all campaigns
+      let allLeads = [];
       
+      // If we got campaigns, fetch leads from each
+      if (campaignsData && Array.isArray(campaignsData)) {
+        for (const campaign of campaignsData) {
+          try {
+            const leadsUrl = `https://api.instantly.ai/api/v1/campaign/get/leads?api_key=${instantlyApiKey}&campaign_id=${campaign.id}`;
+            const leadsResponse = await fetch(leadsUrl);
+            
+            if (leadsResponse.ok) {
+              const leadsData = await leadsResponse.json();
+              if (Array.isArray(leadsData)) {
+                allLeads = allLeads.concat(leadsData.map(lead => ({
+                  ...lead,
+                  campaign_name: campaign.name
+                })));
+              }
+            }
+          } catch (err) {
+            console.error('[Instantly Sync] Error fetching leads for campaign:', campaign.id, err);
+          }
+        }
+      }
+
+      console.log('[Instantly Sync] Total leads collected:', allLeads.length);
+
       let syncedCount = 0;
       let errorCount = 0;
       const errors = [];
 
-      for (const lead of leads) {
+      for (const lead of allLeads) {
         try {
           // Map Instantly fields to our Supabase contacts structure
           const contactData = {
@@ -93,10 +121,10 @@ module.exports = async (req, res) => {
       return res.status(200).json({
         success: true,
         data: {
-          total_leads: leads.length,
+          total_leads: allLeads.length,
           synced: syncedCount,
           errors: errorCount,
-          error_details: errors.length > 0 ? errors.slice(0, 5) : [] // Return first 5 errors only
+          error_details: errors.length > 0 ? errors.slice(0, 5) : []
         },
         message: `Successfully synced ${syncedCount} contacts from Instantly.ai`
       });
