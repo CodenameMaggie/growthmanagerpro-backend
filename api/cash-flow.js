@@ -14,6 +14,7 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  // ==================== GET - Read all cash flow transactions ====================
   if (req.method === 'GET') {
     try {
       const { data, error } = await supabase
@@ -23,6 +24,7 @@ module.exports = async (req, res) => {
 
       if (error) throw error;
 
+      // Calculate stats
       const income = data.filter(t => t.transaction_type === 'income').reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
       const expenses = data.filter(t => t.transaction_type === 'expense').reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
 
@@ -33,26 +35,29 @@ module.exports = async (req, res) => {
         transactionCount: data.length
       };
 
+      // 🔧 TRANSFORM TO MATCH HTML - Use simplified field names
+      const transformedTransactions = data.map(t => ({
+        id: t.id,
+        description: t.description,
+        amount: t.amount,
+        type: t.transaction_type,        // ✅ Simplified from transactionType
+        category: t.category,
+        date: t.transaction_date,        // ✅ Simplified from transactionDate
+        notes: t.notes,
+        created: t.created_at
+      }));
+
       return res.status(200).json({
         success: true,
         data: {
-          transactions: data.map(t => ({
-            id: t.id,
-            description: t.description,
-            amount: t.amount,
-            transactionType: t.transaction_type,
-            category: t.category,
-            transactionDate: t.transaction_date,
-            notes: t.notes,
-            created: t.created_at
-          })),
+          transactions: transformedTransactions,
           stats
         },
         timestamp: new Date().toISOString()
       });
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('[Cash Flow API] GET Error:', error);
       return res.status(500).json({
         success: false,
         error: error.message
@@ -60,6 +65,7 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ==================== POST - Create new transaction ====================
   if (req.method === 'POST') {
     try {
       const { description, amount, transactionType, category, transactionDate, notes } = req.body;
@@ -68,6 +74,14 @@ module.exports = async (req, res) => {
         return res.status(400).json({
           success: false,
           error: 'Description, amount, and transaction type are required'
+        });
+      }
+
+      // Validate transaction type
+      if (!['income', 'expense'].includes(transactionType)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Transaction type must be either "income" or "expense"'
         });
       }
 
@@ -81,18 +95,31 @@ module.exports = async (req, res) => {
           transaction_date: transactionDate || new Date().toISOString().split('T')[0],
           notes: notes || null
         }])
-        .select();
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // Transform response to match HTML
+      const transformedTransaction = {
+        id: data.id,
+        description: data.description,
+        amount: data.amount,
+        type: data.transaction_type,
+        category: data.category,
+        date: data.transaction_date,
+        notes: data.notes,
+        created: data.created_at
+      };
+
       return res.status(201).json({
         success: true,
-        data: data[0],
+        data: transformedTransaction,
         message: 'Transaction created successfully'
       });
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('[Cash Flow API] POST Error:', error);
       return res.status(500).json({
         success: false,
         error: error.message
@@ -100,6 +127,7 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ==================== PUT - Update existing transaction ====================
   if (req.method === 'PUT') {
     try {
       const { id, description, amount, transactionType, category, transactionDate, notes } = req.body;
@@ -111,10 +139,19 @@ module.exports = async (req, res) => {
         });
       }
 
+      // Build update object
       const updateData = {};
-      if (description) updateData.description = description;
+      if (description !== undefined) updateData.description = description;
       if (amount !== undefined) updateData.amount = amount;
-      if (transactionType) updateData.transaction_type = transactionType;
+      if (transactionType !== undefined) {
+        if (!['income', 'expense'].includes(transactionType)) {
+          return res.status(400).json({
+            success: false,
+            error: 'Transaction type must be either "income" or "expense"'
+          });
+        }
+        updateData.transaction_type = transactionType;
+      }
       if (category !== undefined) updateData.category = category;
       if (transactionDate !== undefined) updateData.transaction_date = transactionDate;
       if (notes !== undefined) updateData.notes = notes;
@@ -123,25 +160,38 @@ module.exports = async (req, res) => {
         .from('cash_flow')
         .update(updateData)
         .eq('id', id)
-        .select();
+        .select()
+        .single();
 
       if (error) throw error;
 
-      if (!data || data.length === 0) {
+      if (!data) {
         return res.status(404).json({
           success: false,
           error: 'Transaction not found'
         });
       }
 
+      // Transform response to match HTML
+      const transformedTransaction = {
+        id: data.id,
+        description: data.description,
+        amount: data.amount,
+        type: data.transaction_type,
+        category: data.category,
+        date: data.transaction_date,
+        notes: data.notes,
+        created: data.created_at
+      };
+
       return res.status(200).json({
         success: true,
-        data: data[0],
+        data: transformedTransaction,
         message: 'Transaction updated successfully'
       });
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('[Cash Flow API] PUT Error:', error);
       return res.status(500).json({
         success: false,
         error: error.message
@@ -149,6 +199,7 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ==================== DELETE - Remove transaction ====================
   if (req.method === 'DELETE') {
     try {
       const { id } = req.body;
@@ -173,7 +224,7 @@ module.exports = async (req, res) => {
       });
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('[Cash Flow API] DELETE Error:', error);
       return res.status(500).json({
         success: false,
         error: error.message
@@ -181,5 +232,8 @@ module.exports = async (req, res) => {
     }
   }
 
-  return res.status(405).json({ error: 'Method not allowed' });
+  return res.status(405).json({ 
+    success: false,
+    error: 'Method not allowed' 
+  });
 };
