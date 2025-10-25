@@ -21,6 +21,15 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  // Handle GET request (for testing)
+  if (req.method === 'GET') {
+    return res.status(200).json({ 
+      status: 'ok', 
+      message: 'Instantly Strategy Call endpoint is running',
+      timestamp: new Date().toISOString()
+    });
+  }
+
   if (req.method === 'POST') {
     try {
       const { sales_call_id, discovery_call_id } = req.body;
