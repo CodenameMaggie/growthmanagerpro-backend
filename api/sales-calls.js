@@ -31,10 +31,26 @@ module.exports = async (req, res) => {
                 .filter(c => c.call_status !== 'lost')
                 .reduce((sum, c) => sum + (parseFloat(c.deal_value) || 0), 0);
 
+            // 🔧 TRANSFORM TO CAMELCASE - Match HTML expectations
+            const transformedCalls = calls.map(call => ({
+                id: call.id,
+                prospectName: call.prospect_name,
+                email: call.email,
+                company: call.company,
+                callDate: call.call_date,
+                dealValue: call.deal_value,
+                callStatus: call.call_status,
+                notes: call.notes,
+                contactId: call.contact_id,
+                pipelineCreated: call.pipeline_created,
+                pipelineId: call.pipeline_id,
+                created: call.created_at
+            }));
+
             return res.status(200).json({
                 success: true,
                 data: {
-                    calls,
+                    calls: transformedCalls,
                     stats: {
                         totalDeals,
                         scheduledCalls,
