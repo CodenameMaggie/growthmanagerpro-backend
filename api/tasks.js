@@ -13,6 +13,7 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  // ==================== GET - Read all tasks for dashboard ====================
   if (req.method === 'GET') {
     try {
       const { data, error } = await supabase
@@ -22,22 +23,23 @@ module.exports = async (req, res) => {
 
       if (error) throw error;
 
-      // Map to what dashboard expects
+      // Transform data to match dashboard expectations
       return res.status(200).json({
         success: true,
         tasks: data.map(task => ({
           id: task.id,
-          title: task.task_name,
-          description: task.notes,
-          status: task.task_status,  // Maps: 'completed', 'in_progress' → dashboard accepts both
+          title: task.task_name,              // ← Map task_name to title
+          description: task.notes,             // ← Map notes to description
+          status: task.task_status,            // ← Keep as-is (dashboard accepts 'in_progress', 'completed')
           priority: task.priority,
           due_date: task.due_date,
-          assigned_to: task.assigned_to
+          assigned_to: task.assigned_to,
+          created_at: task.created_at
         }))
       });
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching tasks for dashboard:', error);
       return res.status(500).json({
         success: false,
         error: error.message
