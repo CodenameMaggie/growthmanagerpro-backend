@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
       // API V2 uses Bearer token authentication and POST method
       const leadsUrl = 'https://api.instantly.ai/api/v2/leads/list';
       
-      console.log('[Instantly Sync] Fetching INTERESTED leads from API V2...');
+      console.log('[Instantly Sync] Fetching leads from API V2...');
       const leadsResponse = await fetch(leadsUrl, {
         method: 'POST',
         headers: {
@@ -36,10 +36,7 @@ module.exports = async (req, res) => {
           'Authorization': `Bearer ${instantlyApiKey}`
         },
         body: JSON.stringify({
-          limit: 100, // Fetch up to 100 leads per request
-          filters: {
-            interest_status: [1] // 1 = Interested (Meeting Booked comes from Zoom)
-          }
+          limit: 100 // Fetch up to 100 leads (no filter - get all leads for now)
         })
       });
 
@@ -54,7 +51,7 @@ module.exports = async (req, res) => {
 
       // Extract leads array from response
       const leads = leadsData.data || [];
-      console.log('[Instantly Sync] Total interested leads collected:', leads.length);
+      console.log('[Instantly Sync] Total leads collected:', leads.length);
 
       let syncedCount = 0;
       let errorCount = 0;
@@ -70,7 +67,7 @@ module.exports = async (req, res) => {
               : lead.first_name || lead.last_name || lead.email.split('@')[0],
             company: lead.company_name || lead.company || null,
             phone: lead.phone || null,
-            status: 'interested', // From Instantly = Interested
+            status: lead.interest_status || lead.status || 'new',
             source: 'instantly',
             instantly_campaign: lead.campaign_name || null,
             notes: lead.variables ? JSON.stringify(lead.variables) : null,
@@ -110,7 +107,7 @@ module.exports = async (req, res) => {
           errors: errorCount,
           error_details: errors.length > 0 ? errors.slice(0, 5) : []
         },
-        message: `Successfully synced ${syncedCount} interested contacts from Instantly.ai`
+        message: `Successfully synced ${syncedCount} contacts from Instantly.ai`
       });
 
     } catch (error) {
