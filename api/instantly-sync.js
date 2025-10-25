@@ -69,7 +69,6 @@ module.exports = async (req, res) => {
             phone: lead.phone || null,
             status: lead.interest_status || lead.status || 'new',
             source: 'instantly',
-            instantly_campaign: lead.campaign_name || null,
             notes: lead.variables ? JSON.stringify(lead.variables) : null,
             last_contact_date: lead.last_replied_at || lead.timestamp_updated || new Date().toISOString()
           };
