@@ -14,6 +14,7 @@ const anthropic = new Anthropic({
  * AI Podcast Analyzer
  * Analyzes podcast transcripts and generates comprehensive scoring
  * Auto-creates discovery call ONLY if: prospect agreed AND score >= 35
+ * Auto-sends discovery call invitation via Instantly
  */
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -111,10 +112,12 @@ module.exports = async (req, res) => {
       console.log(`  - Status: ${qualificationStatus}`);
       console.log(`  - Reason: ${qualificationReason}`);
 
+      let discoveryCallCreated = null;
+
       // ONLY auto-create if BOTH conditions met
       if (fullyQualified) {
         console.log(`[AI Analyzer] ✅ FULLY QUALIFIED! Creating discovery call...`);
-        await createDiscoveryCall(updatedInterview, analysis, overallScore);
+        discoveryCallCreated = await createDiscoveryCall(updatedInterview, analysis, overallScore);
         
         // Update contact stage to "discovery"
         if (updatedInterview.contact_id) {
@@ -127,6 +130,12 @@ module.exports = async (req, res) => {
             .eq('id', updatedInterview.contact_id);
           
           console.log(`[AI Analyzer] Contact moved to discovery stage`);
+        }
+
+        // 🚀 AUTO-SEND DISCOVERY CALL INVITATION VIA INSTANTLY
+        if (discoveryCallCreated) {
+          console.log(`[AI Analyzer] Sending discovery call invitation...`);
+          await sendDiscoveryInvitation(discoveryCallCreated.id);
         }
       } else {
         console.log(`[AI Analyzer] ⚠️  NOT AUTO-CREATING: ${qualificationReason}`);
@@ -142,6 +151,8 @@ module.exports = async (req, res) => {
           fully_qualified: fullyQualified,
           qualification_status: qualificationStatus,
           qualification_reason: qualificationReason,
+          discovery_call_created: discoveryCallCreated ? true : false,
+          discovery_call_id: discoveryCallCreated?.id,
           agreement_details: analysis.prospect_agreement,
           analysis
         }
@@ -413,5 +424,39 @@ ${analysis.overall_insights?.guest_fit_assessment || 'Review full analysis'}
   } catch (error) {
     console.error('[AI Analyzer] Error creating discovery call:', error);
     throw error;
+  }
+}
+
+/**
+ * Send discovery call invitation via Instantly
+ */
+async function sendDiscoveryInvitation(discoveryCallId) {
+  try {
+    const inviteUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}/api/instantly-send-discovery`
+      : 'https://growthmanagerpro-backend.vercel.app/api/instantly-send-discovery';
+
+    const response = await fetch(inviteUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        discovery_call_id: discoveryCallId
+      })
+    });
+
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('[AI Analyzer] ✅ Discovery invitation sent successfully');
+    } else {
+      console.error('[AI Analyzer] ⚠️  Failed to send discovery invitation:', result.error);
+    }
+
+    return result;
+
+  } catch (error) {
+    console.error('[AI Analyzer] Error sending discovery invitation:', error);
+    // Don't throw - we don't want to fail the whole analysis if email fails
+    return { success: false, error: error.message };
   }
 }
