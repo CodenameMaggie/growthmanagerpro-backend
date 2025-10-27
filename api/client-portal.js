@@ -20,36 +20,62 @@ module.exports = async (req, res) => {
       // For now, we'll use a query parameter: ?client_id=123
       const clientId = req.query.client_id || 1; // Default to client ID 1 for demo
       
-      // Fetch client profile data
+      // Fetch client profile data from CONTACTS table
       const { data: clientData, error: clientError } = await supabase
-        .from('prospects')
+        .from('contacts')
         .select('*')
         .eq('id', clientId)
         .single();
 
-      if (clientError) throw clientError;
+      if (clientError) {
+        console.error('Error fetching contact:', clientError);
+        throw clientError;
+      }
 
       // Fetch client's discovery calls
       const { data: calls, error: callsError } = await supabase
         .from('discovery_calls')
         .select('*')
-        .eq('prospect_id', clientId)
+        .eq('contact_id', clientId)
         .order('call_date', { ascending: true });
 
-      if (callsError) throw callsError;
+      if (callsError) {
+        console.error('Error fetching discovery calls:', callsError);
+        // Don't throw - just use empty array if no calls
+      }
 
       // Fetch client's sales calls
       const { data: salesCalls, error: salesError } = await supabase
         .from('sales_calls')
         .select('*')
-        .eq('prospect_id', clientId)
+        .eq('contact_id', clientId)
         .order('call_date', { ascending: true });
 
-      if (salesError) throw salesError;
+      if (salesError) {
+        console.error('Error fetching sales calls:', salesError);
+        // Don't throw - just use empty array if no calls
+      }
 
-      // Fetch client's messages (if you have a messages table)
-      // For now, we'll return sample messages structure
-      const messages = [
+      // Fetch client's messages from messages table
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('contact_id', clientId)
+        .order('created_at', { ascending: true });
+
+      if (messagesError) {
+        console.error('Error fetching messages:', messagesError);
+        // Use demo messages if table query fails
+      }
+
+      // Format messages for the portal
+      const messages = messagesData && messagesData.length > 0 ? messagesData.map(msg => ({
+        id: msg.id,
+        sender: msg.sender_name || (msg.is_from_client ? clientData?.name : 'Maggie Forbes'),
+        content: msg.message_text || msg.content,
+        timestamp: msg.created_at,
+        read: msg.is_read || false
+      })) : [
         {
           id: 1,
           sender: 'Maggie Forbes',
@@ -67,9 +93,11 @@ module.exports = async (req, res) => {
       ];
 
       // Calculate program progress based on calls completed
-      const totalCalls = calls.length + salesCalls.length;
-      const completedCalls = calls.filter(c => c.call_status === 'Completed').length + 
-                            salesCalls.filter(c => c.call_status === 'Completed').length;
+      const allCalls = [...(calls || []), ...(salesCalls || [])];
+      const totalCalls = allCalls.length;
+      const completedCalls = allCalls.filter(c => 
+        c.call_status === 'Completed' || c.status === 'completed'
+      ).length;
       const programCompletion = totalCalls > 0 ? Math.round((completedCalls / totalCalls) * 100) : 0;
 
       // Calculate days in program
@@ -79,21 +107,27 @@ module.exports = async (req, res) => {
       const daysRemaining = Math.max(0, 90 - daysInProgram);
 
       // Format upcoming calls for the portal
-      const upcomingCalls = calls
-        .filter(c => c.call_status === 'Scheduled' && new Date(c.call_date) > new Date())
-        .concat(salesCalls.filter(c => c.call_status === 'Scheduled' && new Date(c.call_date) > new Date()))
-        .sort((a, b) => new Date(a.call_date) - new Date(b.call_date))
+      const upcomingCalls = (calls || [])
+        .filter(c => 
+          (c.call_status === 'Scheduled' || c.status === 'scheduled') && 
+          new Date(c.call_date || c.scheduled_date) > new Date()
+        )
+        .concat((salesCalls || []).filter(c => 
+          (c.call_status === 'Scheduled' || c.status === 'scheduled') && 
+          new Date(c.call_date || c.scheduled_date) > new Date()
+        ))
+        .sort((a, b) => new Date(a.call_date || a.scheduled_date) - new Date(b.call_date || b.scheduled_date))
         .slice(0, 3)
         .map(call => ({
           id: call.id,
-          title: call.call_type || 'Strategy Call',
-          date: call.call_date,
-          time: new Date(call.call_date).toLocaleTimeString('en-US', { 
+          title: call.call_type || call.type || 'Strategy Call',
+          date: call.call_date || call.scheduled_date,
+          time: new Date(call.call_date || call.scheduled_date).toLocaleTimeString('en-US', { 
             hour: '2-digit', 
             minute: '2-digit' 
           }),
-          zoomLink: call.zoom_link || '#',
-          status: call.call_status
+          zoomLink: call.zoom_link || call.meeting_link || '#',
+          status: call.call_status || call.status
         }));
 
       // Sample resources (you can create a resources table in Supabase later)
@@ -181,17 +215,35 @@ module.exports = async (req, res) => {
     try {
       const { clientId, message } = req.body;
 
-      // You can add a messages table to Supabase later
-      // For now, just acknowledge receipt
+      // Save message to messages table
+      const { data, error } = await supabase
+        .from('messages')
+        .insert([
+          {
+            contact_id: clientId,
+            message_text: message,
+            is_from_client: true,
+            sender_name: 'Client',
+            is_read: false,
+            created_at: new Date().toISOString()
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error saving message:', error);
+        throw error;
+      }
       
       return res.status(200).json({
         success: true,
-        message: 'Message received',
+        message: 'Message sent successfully',
         data: {
-          id: Date.now(),
+          id: data.id,
           sender: 'client',
           content: message,
-          timestamp: new Date().toISOString(),
+          timestamp: data.created_at,
           read: false
         }
       });
