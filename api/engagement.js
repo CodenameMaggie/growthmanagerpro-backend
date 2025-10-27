@@ -59,14 +59,14 @@ module.exports = async (req, res) => {
         // STEP 1: Get the deal to extract client info
         const { data: deal, error: dealError } = await supabase
           .from('deals')
-          .select('*, contacts(*)')
+          .select('*')
           .eq('id', dealId)
           .single();
 
         if (dealError) throw dealError;
         if (!deal) throw new Error('Deal not found');
 
-        const clientName = deal.contacts?.company || deal.contacts?.name || 'Client';
+        const clientName = deal.client_name || deal.contact_name || 'Client';
         console.log('✅ Found deal for client:', clientName);
 
         // STEP 2: Get the engagement template
@@ -124,7 +124,6 @@ module.exports = async (req, res) => {
 
             tasksToInsert.push({
               deal_id: dealId,
-              contact_id: deal.contact_id,
               title: title,
               description: description,
               status: 'not_started',
@@ -183,7 +182,7 @@ module.exports = async (req, res) => {
         // Fetch all deals with active engagements
         const { data: deals, error: dealsError } = await supabase
           .from('deals')
-          .select('*, contacts(*)')
+          .select('*')
           .eq('status', 'client')
           .not('engagement_tier', 'is', null)
           .eq('tasks_generated', true);
@@ -221,7 +220,7 @@ module.exports = async (req, res) => {
 
           engagements.push({
             dealId: deal.id,
-            client: deal.contacts?.company || deal.contacts?.name || 'Client',
+            client: deal.client_name || deal.contact_name || 'Client',
             currentWeek: currentWeek,
             tier: deal.engagement_tier,
             startDate: deal.engagement_start_date,
