@@ -69,18 +69,15 @@ module.exports = async (req, res) => {
         const clientName = deal.client_name || deal.contact_name || 'Client';
         console.log('✅ Found deal for client:', clientName);
 
-        // STEP 2: Get the engagement template
-        const { data: template, error: templateError } = await supabase
-          .from('engagement_templates')
-          .select('*')
-          .eq('tier_name', tierName)
-          .single();
+       // STEP 2: Get the engagement template
+console.log('🔍 Looking for template:', tierName, '(length:', tierName.length, ')');
+const { data: template, error: templateError } = await supabase
+  .from('engagement_templates')
+  .select('*')
+  .eq('tier_name', tierName)
+  .single();
 
-        if (templateError) throw templateError;
-        if (!template) throw new Error(`Template not found: ${tierName}`);
-        
-        console.log(`✅ Found template: ${template.duration_weeks} weeks`);
-
+console.log('📋 Template result:', { template, error: templateError });
         // STEP 3: Calculate end date
         const start = new Date(startDate);
         const endDate = new Date(start);
