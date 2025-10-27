@@ -90,17 +90,17 @@ console.log('📋 Template result:', { template, error: templateError });
         });
 
         // STEP 4: Update deal with engagement info
-        const { error: updateError } = await supabase
-          .from('deals')
-          .update({
-            engagement_tier: tierName,
-            engagement_start_date: startDate,
-            engagement_end_date: endDate.toISOString().split('T')[0],
-            tasks_generated: true,
-            status: 'client', // Mark as client
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', dealId);
+       const { error: updateError } = await supabase
+  .from('deals')
+  .update({
+    engagement_tier: tierName,
+    engagement_start_date: startDate,
+    engagement_end_date: endDate.toISOString().split('T')[0],
+    tasks_generated: true,
+    status: 'active',  // ← CORRECT VALUE!
+    updated_at: new Date().toISOString()
+  })
+  .eq('id', dealId);
 
         if (updateError) throw updateError;
         console.log('✅ Updated deal with engagement info');
