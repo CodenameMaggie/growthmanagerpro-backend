@@ -16,9 +16,25 @@ module.exports = async (req, res) => {
 
   if (req.method === 'GET') {
     try {
-      // Get client ID from query parameter or authentication
-      // For now, we'll use a query parameter: ?client_id=123
-      const clientId = req.query.client_id || 1; // Default to client ID 1 for demo
+      // Get client ID from query parameter - MUST be a valid UUID
+      // Example: ?client_id=ef282007-dddb-4e78-a17c-3b80a84e2e47
+      const clientId = req.query.client_id;
+      
+      if (!clientId) {
+        return res.status(400).json({
+          success: false,
+          error: 'client_id parameter is required (must be a valid UUID)'
+        });
+      }
+
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(clientId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'client_id must be a valid UUID format'
+        });
+      }
       
       // Fetch client profile data from CONTACTS table
       const { data: clientData, error: clientError } = await supabase
@@ -29,6 +45,15 @@ module.exports = async (req, res) => {
 
       if (clientError) {
         console.error('Error fetching contact:', clientError);
+        
+        // If contact not found, return a helpful error
+        if (clientError.code === 'PGRST116') {
+          return res.status(404).json({
+            success: false,
+            error: 'Client not found with that ID'
+          });
+        }
+        
         throw clientError;
       }
 
@@ -36,24 +61,22 @@ module.exports = async (req, res) => {
       const { data: calls, error: callsError } = await supabase
         .from('discovery_calls')
         .select('*')
-        .eq('contact_id', clientId)
+        .or(`contact_id.eq.${clientId},prospect_id.eq.${clientId}`)
         .order('call_date', { ascending: true });
 
       if (callsError) {
         console.error('Error fetching discovery calls:', callsError);
-        // Don't throw - just use empty array if no calls
       }
 
       // Fetch client's sales calls
       const { data: salesCalls, error: salesError } = await supabase
         .from('sales_calls')
         .select('*')
-        .eq('contact_id', clientId)
+        .or(`contact_id.eq.${clientId},prospect_id.eq.${clientId}`)
         .order('call_date', { ascending: true });
 
       if (salesError) {
         console.error('Error fetching sales calls:', salesError);
-        // Don't throw - just use empty array if no calls
       }
 
       // Fetch client's messages from messages table
@@ -65,7 +88,6 @@ module.exports = async (req, res) => {
 
       if (messagesError) {
         console.error('Error fetching messages:', messagesError);
-        // Use demo messages if table query fails
       }
 
       // Format messages for the portal
@@ -214,6 +236,13 @@ module.exports = async (req, res) => {
     // Handle POST requests for sending messages
     try {
       const { clientId, message } = req.body;
+
+      if (!clientId || !message) {
+        return res.status(400).json({
+          success: false,
+          error: 'clientId and message are required'
+        });
+      }
 
       // Save message to messages table
       const { data, error } = await supabase
