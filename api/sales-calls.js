@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = async (req, res) => {
@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
             const { data: calls, error } = await supabase
                 .from('sales_calls')
                 .select('*')
-                .order('call_date', { ascending: false });
+                .order('scheduled_date', { ascending: false });
 
             if (error) throw error;
 
@@ -37,7 +37,7 @@ module.exports = async (req, res) => {
                 prospectName: call.prospect_name,
                 email: call.email,
                 company: call.company,
-                callDate: call.call_date,
+                callDate: call.scheduled_date,
                 dealValue: call.deal_value,
                 callStatus: call.call_status,
                 notes: call.notes,
