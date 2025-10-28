@@ -14,139 +14,139 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // GET - Fetch all pipeline deals with stats
+        // GET - Fetch all contacts organized by pipeline stage
         if (req.method === 'GET') {
-            // ✅ FIXED: Removed contacts join - just get pipeline data
-            const { data: deals, error } = await supabase
-                .from('pipeline')
+            // Fetch all contacts with their current stage
+            const { data: contacts, error } = await supabase
+                .from('contacts')
                 .select('*')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
 
-            // If deals have contact_id, optionally fetch contact details separately
-            let contactsMap = {};
-            if (deals && deals.length > 0) {
-                const contactIds = [...new Set(deals.map(d => d.contact_id).filter(Boolean))];
-                
-                if (contactIds.length > 0) {
-                    const { data: contacts, error: contactsError } = await supabase
-                        .from('contacts')
-                        .select('id, name, email, company')
-                        .in('id', contactIds);
-                    
-                    if (!contactsError && contacts) {
-                        contactsMap = contacts.reduce((acc, contact) => {
-                            acc[contact.id] = contact;
-                            return acc;
-                        }, {});
-                    }
-                }
-            }
+            // Define pipeline stages in order
+            const stages = [
+                { name: 'New Lead', key: 'lead', icon: '🆕' },
+                { name: 'Podcast Interview', key: 'podcast', icon: '🎙️' },
+                { name: 'Discovery Call', key: 'discovery', icon: '🔍' },
+                { name: 'Sales Call', key: 'sales', icon: '💼' },
+                { name: 'Proposal', key: 'proposal', icon: '📄' },
+                { name: 'Negotiation', key: 'negotiation', icon: '🤝' },
+                { name: 'Closed Won', key: 'closed', icon: '✅' },
+                { name: 'Lost', key: 'lost', icon: '❌' }
+            ];
 
-            // Enrich deals with contact data if available
-            const enrichedDeals = (deals || []).map(deal => {
-                const contact = contactsMap[deal.contact_id];
+            // Organize contacts by stage
+            const pipeline = stages.map(stage => {
+                // Filter contacts in this stage
+                const stageContacts = (contacts || []).filter(contact => {
+                    const contactStage = contact.stage || contact.status || 'lead';
+                    return contactStage.toLowerCase() === stage.key;
+                });
+
                 return {
-                    ...deal,
-                    company: contact?.company || deal.company || 'No company',
-                    contactName: contact?.name || deal.contact_name || 'Unknown',
-                    contactEmail: contact?.email || ''
+                    name: stage.name,
+                    key: stage.key,
+                    icon: stage.icon,
+                    count: stageContacts.length,
+                    prospects: stageContacts.map(contact => ({
+                        id: contact.id,
+                        name: contact.name,
+                        company: contact.company || 'No company',
+                        email: contact.email,
+                        phone: contact.phone,
+                        stage: contact.stage || contact.status,
+                        notes: contact.notes,
+                        lastActivity: contact.last_activity || contact.updated_at,
+                        createdAt: contact.created_at
+                    }))
                 };
             });
 
-            // 🔧 TRANSFORM TO CAMELCASE - Match HTML expectations
-            const transformedDeals = enrichedDeals.map(deal => ({
-                id: deal.id,
-                name: deal.name,
-                company: deal.company,              // Already enriched ✅
-                contactName: deal.contactName,      // Already enriched ✅
-                contactEmail: deal.contactEmail,    // Already enriched ✅
-                contactId: deal.contact_id,
-                value: deal.value,
-                stage: deal.stage,
-                status: deal.status,
-                autoCreated: deal.auto_created,
-                sourceType: deal.source_type,
-                salesCallId: deal.sales_call_id,
-                expectedCloseDate: deal.expected_close_date,
-                notes: deal.notes,
-                createdAt: deal.created_at
-            }));
-
-            // Calculate stats
-            const totalValue = deals.reduce((sum, d) => sum + (parseFloat(d.value) || 0), 0);
-            const activeDeals = deals.filter(d => d.stage !== 'lost').length;
-            const avgDealSize = activeDeals > 0 ? totalValue / activeDeals : 0;
+            // Calculate overall stats
+            const totalContacts = contacts?.length || 0;
+            const activeContacts = contacts?.filter(c => 
+                !['lost', 'closed'].includes((c.stage || c.status || '').toLowerCase())
+            ).length || 0;
             
-            const closedDeals = deals.filter(d => d.stage === 'closed' && d.status === 'won').length;
-            const advancedDeals = deals.filter(d => 
-                ['proposal', 'negotiation', 'closed'].includes(d.stage)
-            ).length;
-            const winRate = advancedDeals > 0 ? (closedDeals / advancedDeals * 100) : 0;
+            const closedWon = contacts?.filter(c => 
+                (c.stage || c.status || '').toLowerCase() === 'closed'
+            ).length || 0;
 
-            // Count automation stats
-            const autoCreatedCount = deals.filter(d => d.auto_created === true).length;
-            const manualCount = deals.filter(d => !d.auto_created).length;
-            const fromPodcast = deals.filter(d => d.source_type === 'sales_call').length;
+            const conversionRate = totalContacts > 0 
+                ? ((closedWon / totalContacts) * 100).toFixed(1) 
+                : 0;
 
             return res.status(200).json({
                 success: true,
                 data: {
-                    deals: transformedDeals,  // ✅ Use camelCase transformed data
+                    stages: pipeline,
                     stats: {
-                        totalValue,
-                        activeDeals,
-                        avgDealSize,
-                        winRate,
-                        autoCreatedCount,
-                        manualCount,
-                        fromPodcast
+                        totalContacts,
+                        activeContacts,
+                        closedWon,
+                        conversionRate: parseFloat(conversionRate),
+                        stageBreakdown: pipeline.map(s => ({
+                            stage: s.name,
+                            count: s.count
+                        }))
                     }
                 }
             });
         }
 
-        // POST - Create new pipeline deal (manual or automated)
+        // POST - Move contact to different stage
         if (req.method === 'POST') {
-            const dealData = req.body;
+            const { contactId, stage, notes } = req.body;
 
-            // If not specified, assume manual entry
-            if (dealData.auto_created === undefined) {
-                dealData.auto_created = false;
-                dealData.source_type = dealData.source_type || 'manual';
+            if (!contactId || !stage) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Contact ID and stage are required'
+                });
             }
 
-            const { data: newDeal, error } = await supabase
-                .from('pipeline')
-                .insert([dealData])
+            const updateData = {
+                stage: stage,
+                updated_at: new Date().toISOString()
+            };
+
+            if (notes) {
+                updateData.notes = notes;
+            }
+
+            const { data: updatedContact, error } = await supabase
+                .from('contacts')
+                .update(updateData)
+                .eq('id', contactId)
                 .select()
                 .single();
 
             if (error) throw error;
 
-            console.log('[Pipeline] ✅ Deal created:', newDeal.id, 
-                newDeal.auto_created ? '(Auto-created)' : '(Manual)');
+            console.log('[Pipeline] ✅ Contact moved to stage:', updatedContact.name, '→', stage);
 
-            return res.status(201).json({
+            return res.status(200).json({
                 success: true,
-                data: newDeal
+                data: updatedContact
             });
         }
 
-        // PUT - Update pipeline deal
+        // PUT - Update contact details
         if (req.method === 'PUT') {
             const { id, ...updateData } = req.body;
 
             if (!id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Deal ID is required'
+                    error: 'Contact ID is required'
                 });
             }
 
-            const { data: updatedDeal, error } = await supabase
-                .from('pipeline')
+            updateData.updated_at = new Date().toISOString();
+
+            const { data: updatedContact, error } = await supabase
+                .from('contacts')
                 .update(updateData)
                 .eq('id', id)
                 .select()
@@ -156,31 +156,7 @@ module.exports = async (req, res) => {
 
             return res.status(200).json({
                 success: true,
-                data: updatedDeal
-            });
-        }
-
-        // DELETE - Delete pipeline deal
-        if (req.method === 'DELETE') {
-            const { id } = req.body;
-
-            if (!id) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Deal ID is required'
-                });
-            }
-
-            const { error } = await supabase
-                .from('pipeline')
-                .delete()
-                .eq('id', id);
-
-            if (error) throw error;
-
-            return res.status(200).json({
-                success: true,
-                message: 'Deal deleted successfully'
+                data: updatedContact
             });
         }
 
