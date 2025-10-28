@@ -16,27 +16,44 @@ module.exports = async (req, res) => {
     try {
         // GET - Fetch all pipeline deals with stats
         if (req.method === 'GET') {
+            // ✅ FIXED: Removed contacts join - just get pipeline data
             const { data: deals, error } = await supabase
                 .from('pipeline')
-                .select(`
-                    *,
-                    contacts (
-                        id,
-                        name,
-                        email,
-                        company
-                    )
-                `)
+                .select('*')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
 
-            // Enrich deals with contact data
-            const enrichedDeals = deals.map(deal => ({
-                ...deal,
-                company: deal.contacts?.company || 'No company',
-                contactName: deal.contacts?.name || 'Unknown'
-            }));
+            // If deals have contact_id, optionally fetch contact details separately
+            let contactsMap = {};
+            if (deals && deals.length > 0) {
+                const contactIds = [...new Set(deals.map(d => d.contact_id).filter(Boolean))];
+                
+                if (contactIds.length > 0) {
+                    const { data: contacts, error: contactsError } = await supabase
+                        .from('contacts')
+                        .select('id, name, email, company')
+                        .in('id', contactIds);
+                    
+                    if (!contactsError && contacts) {
+                        contactsMap = contacts.reduce((acc, contact) => {
+                            acc[contact.id] = contact;
+                            return acc;
+                        }, {});
+                    }
+                }
+            }
+
+            // Enrich deals with contact data if available
+            const enrichedDeals = (deals || []).map(deal => {
+                const contact = contactsMap[deal.contact_id];
+                return {
+                    ...deal,
+                    company: contact?.company || deal.company || 'No company',
+                    contactName: contact?.name || deal.contact_name || 'Unknown',
+                    contactEmail: contact?.email || ''
+                };
+            });
 
             // 🔧 TRANSFORM TO CAMELCASE - Match HTML expectations
             const transformedDeals = enrichedDeals.map(deal => ({
@@ -44,6 +61,7 @@ module.exports = async (req, res) => {
                 name: deal.name,
                 company: deal.company,              // Already enriched ✅
                 contactName: deal.contactName,      // Already enriched ✅
+                contactEmail: deal.contactEmail,    // Already enriched ✅
                 contactId: deal.contact_id,
                 value: deal.value,
                 stage: deal.stage,
