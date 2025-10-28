@@ -126,7 +126,7 @@ module.exports = async (req, res) => {
                     stage: 'closed',
                     status: 'won',
                     auto_created: true,
-                    source_type: 'sales_call',
+                    expected_close_date: updatedCall.scheduled_date,
                     sales_call_id: updatedCall.id,
                     expected_close_date: updatedCall.call_date,
                     notes: `Auto-created from sales call on ${new Date().toISOString()}`
