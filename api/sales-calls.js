@@ -153,17 +153,20 @@ module.exports = async (req, res) => {
                         .eq('id', id);
                     
                     // 📧 Send welcome email with weekly check-in link
-                const emailBody = `
-                Hi ${updatedCall.prospect_name},
-                
-                Welcome to the partnership! 🎉
-                
-                Let's schedule your weekly check-in calls:
-                https://calendly.com/maggie-maggieforbesstrategies/weekly-check-in
-                
-                Looking forward to working together!
-                Maggie
-                `;
+                const emailBody = `Hi ${updatedCall.prospect_name},
+
+Welcome to the partnership! 🎉
+
+Excited to officially begin working together on your growth transformation!
+
+Let's schedule your weekly check-in calls:
+https://calendly.com/maggie-maggieforbesstrategies/weekly-check-in
+
+Looking forward to building something great together!
+
+Maggie Forbes
+Founder, Maggie Forbes Strategies
+AI Systems for Human-Led Growth`;
                 
                 console.log('[Sales Calls] 📧 TODO: 
                             // Create sprint task for new client onboarding
