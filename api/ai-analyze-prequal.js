@@ -14,7 +14,7 @@ const anthropic = new Anthropic({
  * Analyzes pre-qual transcripts and auto-triggers podcast invitation if qualified
  * 
  * Endpoint: POST /api/ai-analyze-prequal
- * Body: { prequal_call_id, transcript }
+ * Body: { callId } - The pre_qualification_calls record ID
  */
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -30,26 +30,35 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { prequal_call_id, transcript } = req.body;
+    const { callId } = req.body;
 
-    if (!prequal_call_id || !transcript) {
+    if (!callId) {
       return res.status(400).json({ 
-        error: 'Missing required fields: prequal_call_id and transcript are required' 
+        error: 'Missing required field: callId is required' 
       });
     }
 
-    console.log('[Pre-Qual Analysis] Analyzing call:', prequal_call_id);
+    console.log('[Pre-Qual Analysis] Analyzing call:', callId);
 
-    // Get the pre-qual call record
+    // Get the pre-qual call record with transcript
     const { data: prequalCall, error: callError } = await supabase
       .from('pre_qualification_calls')
       .select('*, contacts(*)')
-      .eq('id', prequal_call_id)
+      .eq('id', callId)
       .single();
 
     if (callError || !prequalCall) {
       return res.status(404).json({ error: 'Pre-qualification call not found' });
     }
+
+    // Check if transcript exists
+    if (!prequalCall.transcript) {
+      return res.status(400).json({ 
+        error: 'Transcript not available yet. Please transcribe the recording first.' 
+      });
+    }
+
+    const transcript = prequalCall.transcript;
 
     // AI Analysis Prompt
     const analysisPrompt = `You are analyzing a pre-qualification sales call to determine if this prospect should be invited to a podcast interview.
@@ -111,7 +120,6 @@ Score 35+ = Qualified for podcast interview`;
     const { error: updateError } = await supabase
       .from('pre_qualification_calls')
       .update({
-        transcript: transcript,
         ai_score: analysis.qualification_score,
         revenue_signals: analysis.revenue_signals,
         growth_challenges: analysis.growth_challenges,
@@ -126,7 +134,7 @@ Score 35+ = Qualified for podcast interview`;
         analyzed_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .eq('id', prequal_call_id);
+      .eq('id', callId);
 
     if (updateError) {
       console.error('[Pre-Qual Analysis] Error updating call:', updateError);
@@ -138,6 +146,14 @@ Score 35+ = Qualified for podcast interview`;
       console.log('[Pre-Qual Analysis] ✅ QUALIFIED! Sending podcast invitation...');
 
       try {
+        // Get guest's first name
+        const firstName = prequalCall.guest_name.split(' ')[0];
+        
+        // Build topic string for email
+        const topicString = analysis.podcast_topics.length > 0 
+          ? analysis.podcast_topics.slice(0, 2).join(' and ')
+          : 'your business growth strategies';
+
         const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/email/send', {
           method: 'POST',
           headers: {
@@ -147,11 +163,11 @@ Score 35+ = Qualified for podcast interview`;
           body: JSON.stringify({
             to: prequalCall.guest_email,
             subject: `Let's continue our conversation - Podcast invitation`,
-            body: `Hi ${prequalCall.guest_name.split(' ')[0]},
+            body: `Hi ${firstName},
 
 Thanks for our great pre-qualification call! I really enjoyed learning about ${prequalCall.company || 'your business'} and the growth challenges you're facing.
 
-I'd love to continue our conversation in a more in-depth format. I host a podcast where I explore ${analysis.podcast_topics.join(', ')} with leaders like yourself.
+I'd love to continue our conversation in a more in-depth format. I host a podcast where I explore ${topicString} with leaders like yourself.
 
 Would you be open to a 30-minute podcast conversation? It's a great way to dive deeper into your growth strategy, and I can share some specific ideas that might help.
 
@@ -177,10 +193,22 @@ The Leadership Intelligence System™`,
               podcast_invitation_sent: true,
               podcast_invitation_sent_at: new Date().toISOString()
             })
-            .eq('id', prequal_call_id);
+            .eq('id', callId);
+
+          // Also update contact status
+          if (prequalCall.contact_id) {
+            await supabase
+              .from('contacts')
+              .update({ 
+                status: 'podcast_scheduled',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', prequalCall.contact_id);
+          }
 
         } else {
-          console.error('[Pre-Qual Analysis] ❌ Instantly email failed:', await instantlyResponse.text());
+          const errorText = await instantlyResponse.text();
+          console.error('[Pre-Qual Analysis] ❌ Instantly email failed:', errorText);
         }
       } catch (emailError) {
         console.error('[Pre-Qual Analysis] ❌ Error sending email:', emailError);
@@ -191,7 +219,8 @@ The Leadership Intelligence System™`,
 
     return res.status(200).json({
       success: true,
-      prequal_call_id,
+      call_id: callId,
+      guest_name: prequalCall.guest_name,
       qualified: analysis.qualified_for_podcast,
       score: analysis.qualification_score,
       analysis,
