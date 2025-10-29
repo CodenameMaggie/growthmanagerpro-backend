@@ -11,7 +11,7 @@ const anthropic = new Anthropic({
 
 /**
  * AI Pre-Qualification Call Analyzer
- * Analyzes pre-qual transcripts and auto-triggers podcast invitation if qualified
+ * Analyzes pre-qual transcripts and auto-triggers personalized podcast invitation if qualified
  * 
  * Endpoint: POST /api/ai-analyze-prequal
  * Body: { callId } - The pre_qualification_calls record ID
@@ -141,18 +141,66 @@ Score 35+ = Qualified for podcast interview`;
       throw updateError;
     }
 
-    // If qualified, send podcast invitation via Instantly
+    // If qualified, send personalized podcast invitation via Instantly
     if (analysis.qualified_for_podcast && analysis.qualification_score >= 35) {
-      console.log('[Pre-Qual Analysis] ✅ QUALIFIED! Sending podcast invitation...');
+      console.log('[Pre-Qual Analysis] ✅ QUALIFIED! Sending personalized podcast invitation...');
 
       try {
-        // Get guest's first name
+        // Build personalized email content
         const firstName = prequalCall.guest_name.split(' ')[0];
+        const companyName = prequalCall.company || 'your business';
         
-        // Build topic string for email
-        const topicString = analysis.podcast_topics.length > 0 
-          ? analysis.podcast_topics.slice(0, 2).join(' and ')
-          : 'your business growth strategies';
+        // Format growth challenges for email
+        const challengesText = analysis.growth_challenges.length > 0 
+          ? analysis.growth_challenges.slice(0, 2).join(' and ')
+          : 'the growth challenges you mentioned';
+        
+        // Format podcast topics
+        const topicsText = analysis.podcast_topics.length > 0 
+          ? analysis.podcast_topics.slice(0, 2).join(', ')
+          : 'scaling strategies and leadership development';
+
+        // Build personalized intro based on strengths
+        let personalNote = '';
+        if (analysis.strengths.length > 0) {
+          const strength = analysis.strengths[0];
+          personalNote = `I was particularly impressed by ${strength.toLowerCase()}. `;
+        }
+
+        const emailBody = `Hi ${firstName},
+
+Thanks for taking the time to speak with me during our pre-qualification call! ${personalNote}I really enjoyed learning about ${companyName} and hearing your perspective on ${challengesText}.
+
+Based on our conversation, I think there's a great opportunity for us to dive deeper into your growth strategy. I'd love to invite you to be a guest on my podcast, where we explore ${topicsText} with business leaders like yourself.
+
+**About the Podcast:**
+The Leadership Intelligence System™ podcast features in-depth conversations with executives and business owners who are scaling their operations and overcoming real growth challenges. It's a 30-minute discussion where we can:
+
+• Explore the specific challenges you're facing with ${challengesText}
+• Share proven strategies that have worked for similar businesses
+• Discuss actionable next steps for your growth goals
+
+**About Me:**
+I'm Maggie Forbes, founder of Maggie Forbes Strategies. I specialize in helping B2B companies and service professionals scale from $3M to $10M+ through systematic lead generation, sales enablement, and strategic growth planning. My clients typically see a 7x ROI within 90 days of implementing The Leadership Intelligence System™.
+
+Learn more about my work: https://www.maggieforbesstrategies.com
+
+**Next Steps:**
+The podcast is conversational and value-focused—my goal is to help you gain clarity on your next growth phase while sharing insights that could benefit other business leaders facing similar challenges.
+
+Schedule your 30-minute podcast interview here:
+👉 https://calendly.com/maggie-maggieforbesstrategies/podcast-call-1
+
+I'm looking forward to continuing our conversation!
+
+Best regards,
+
+Maggie Forbes
+Founder, Maggie Forbes Strategies
+The Leadership Intelligence System™
+
+📧 maggie@maggieforbesstrategies.com
+🌐 www.maggieforbesstrategies.com`;
 
         const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/email/send', {
           method: 'POST',
@@ -162,29 +210,15 @@ Score 35+ = Qualified for podcast interview`;
           },
           body: JSON.stringify({
             to: prequalCall.guest_email,
-            subject: `Let's continue our conversation - Podcast invitation`,
-            body: `Hi ${firstName},
-
-Thanks for our great pre-qualification call! I really enjoyed learning about ${prequalCall.company || 'your business'} and the growth challenges you're facing.
-
-I'd love to continue our conversation in a more in-depth format. I host a podcast where I explore ${topicString} with leaders like yourself.
-
-Would you be open to a 30-minute podcast conversation? It's a great way to dive deeper into your growth strategy, and I can share some specific ideas that might help.
-
-Schedule your podcast interview here:
-https://calendly.com/maggie-maggieforbesstrategies/podcast-call-1
-
-Looking forward to it!
-
-Maggie Forbes
-Founder, Maggie Forbes Strategies
-The Leadership Intelligence System™`,
-            from_email: 'maggie@maggieforbesstrategies.com'
+            subject: `${firstName}, let's continue our conversation on the podcast 🎙️`,
+            body: emailBody,
+            from_email: 'maggie@maggieforbesstrategies.com',
+            from_name: 'Maggie Forbes'
           })
         });
 
         if (instantlyResponse.ok) {
-          console.log('[Pre-Qual Analysis] ✅ Podcast invitation sent via Instantly');
+          console.log('[Pre-Qual Analysis] ✅ Personalized podcast invitation sent via Instantly');
           
           // Mark email as sent
           await supabase
@@ -226,7 +260,7 @@ The Leadership Intelligence System™`,
       analysis,
       podcast_invitation_sent: analysis.qualified_for_podcast && analysis.qualification_score >= 35,
       message: analysis.qualified_for_podcast 
-        ? `✅ Qualified! Score: ${analysis.qualification_score}/50. Podcast invitation sent to ${prequalCall.guest_name}.`
+        ? `✅ Qualified! Score: ${analysis.qualification_score}/50. Personalized podcast invitation sent to ${prequalCall.guest_name}.`
         : `❌ Not qualified. Score: ${analysis.qualification_score}/50 (need 35+).`
     });
 
