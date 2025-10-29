@@ -151,9 +151,23 @@ module.exports = async (req, res) => {
                             pipeline_id: pipelineEntry.id 
                         })
                         .eq('id', id);
-                }
+                    
+                    // 📧 Send welcome email with weekly check-in link
+                const emailBody = `
+                Hi ${updatedCall.prospect_name},
+                
+                Welcome to the partnership! 🎉
+                
+                Let's schedule your weekly check-in calls:
+                https://calendly.com/maggie-maggieforbesstrategies/weekly-check-in
+                
+                Looking forward to working together!
+                Maggie
+                `;
+                
+                console.log('[Sales Calls] 📧 TODO: Send email:', emailBody);
+                // TODO: Add your email service integration here                }
             }
-
             return res.status(200).json({
                 success: true,
                 data: updatedCall
