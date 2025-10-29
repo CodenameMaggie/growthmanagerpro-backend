@@ -48,82 +48,140 @@ module.exports = async (req, res) => {
         const contactName = discoveryCall.contacts?.name || 'Unknown';
         const company = discoveryCall.contacts?.company || 'Unknown Company';
 
-        // Analyze transcript with Claude AI - COMPREHENSIVE 50-POINT SCORING
-        const analysisPrompt = `You are analyzing a discovery call transcript for Maggie Forbes Strategies, a B2B growth consultancy.
+        // Analyze transcript with Claude AI - TIER-BASED SYSTEM RECOMMENDATIONS
+        const analysisPrompt = `You are analyzing a discovery call transcript for Maggie Forbes Strategies, a B2B growth consultancy specializing in AI-powered systems deployment.
 
 TRANSCRIPT:
 ${transcript}
 
 SCORING RUBRIC (50 Points Total):
 
-1. BUDGET SIGNALS (15 points):
-   - 15 pts: Current revenue $10M+, clear growth budget discussed
-   - 10 pts: Revenue $5-10M or budget signals present
-   - 5 pts: Revenue $1-5M, some budget indicators
-   - 0 pts: No budget signals or under $1M
+1. ORGANIZATIONAL MATURITY & SCALE (15 points):
+   - 15 pts: $10M+ revenue, established operations, 50+ employees
+   - 10 pts: $5-10M revenue, scaling phase, 20-50 employees
+   - 5 pts: $3-5M revenue, early growth, under 20 employees
+   - 0 pts: Under $3M or unclear
 
-2. TIMELINE/URGENCY (10 points):
-   - 10 pts: Ready now or within 1 week
-   - 7 pts: Within 2-4 weeks
-   - 4 pts: 1-2 months
+2. SYSTEMS SOPHISTICATION NEED (10 points):
+   - 10 pts: Needs comprehensive AI systems (intent, personalization, orchestration)
+   - 7 pts: Needs 3-5 systems deployed
+   - 4 pts: Needs 1-2 systems or foundational work
+   - 0 pts: No clear systems need
+
+3. TIMELINE/URGENCY (10 points):
+   - 10 pts: Ready to start within 1-2 weeks
+   - 7 pts: Within 1 month
+   - 4 pts: 1-3 months
    - 0 pts: 3+ months or vague
 
-3. DECISION AUTHORITY (10 points):
-   - 10 pts: Owner/CEO/decision maker
-   - 7 pts: VP/Director with authority
+4. DECISION AUTHORITY (10 points):
+   - 10 pts: Owner/CEO/decision maker with budget authority
+   - 7 pts: VP/Director with decision power
    - 4 pts: Manager who needs approval
    - 0 pts: No authority or unclear
 
-4. PAIN SEVERITY (10 points):
-   - 10 pts: Critical/urgent problems with $ impact stated
-   - 7 pts: Clear pain points, quantified challenges
+5. PAIN SEVERITY & STRATEGIC CHALLENGES (10 points):
+   - 10 pts: Critical growth bottlenecks with quantified $ impact
+   - 7 pts: Clear strategic challenges, specific pain points
    - 4 pts: Some challenges identified
    - 0 pts: Vague or no specific pain
 
-5. STRATEGIC FIT (5 points):
-   - 5 pts: B2B service/contractor, growth-focused
-   - 3 pts: B2B but different vertical
-   - 0 pts: B2C or poor fit
+6. PARTNERSHIP READINESS (5 points):
+   - 5 pts: Committed to systematic transformation, not quick fixes
+   - 3 pts: Open to partnership approach
+   - 0 pts: Looking for tactical help only
 
-6. AGREEMENT TO SEE OFFER (10 points):
-   - 10 pts: Explicit "yes, send me proposal"
-   - 7 pts: Verbal agreement, negotiated deal
-   - 4 pts: Interested but needs more info
-   - 0 pts: No clear agreement
+PARTNERSHIP TIER RECOMMENDATIONS:
 
-ENGAGEMENT MODELS TO RECOMMEND:
+**STRATEGIC FOUNDATIONS ($25K-75K, 90-day projects)**
+RECOMMEND IF:
+- Revenue $3M-10M, established but not yet scaled
+- Needs strategic clarity before implementation
+- Unclear on what systems they need
+- Wants roadmap and diagnostic work
+- Score typically: 20-35/50
 
-1. STRATEGIC FOUNDATIONS ($Custom, 90-day): For leaders seeking clarity before scale
-   - Recommend if: They're unclear what's wrong, need diagnostic, want roadmap
-   
-2. GROWTH ARCHITECTURE ($150K annually): For organizations ready to systematize and scale
-   - Recommend if: Clear on problems, ready for implementation, ongoing partnership desired
-   
-3. STRATEGIC ALLIANCE (By invitation): For leaders who want permanent thinking partner
-   - Recommend if: Premium client profile, want strategic partner not vendor, long-term focus
+DELIVERS:
+- Complete systems audit & tech stack analysis
+- Data intelligence framework setup
+- Growth systems design blueprint
+- 12-month implementation roadmap
+- ROI modeling and success metrics
 
-SPECIFIC SERVICES (flag if mentioned):
-- Predictable Growth / Lead Generation / Dream 100
-- Conversion Systems / Sales Process Optimization
-- Authority Engine / Content / Thought Leadership
-- Operational Freedom / Automation
-- Strategic Clarity / Business Audit
-- Branded Client Experience
-- Data Clarity / Reporting
-- Fractional Growth Partnership
+**GROWTH ARCHITECTURE ($150K+ annual partnerships)**
+RECOMMEND IF:
+- Revenue $10M+, ready to scale systematically
+- Clear on problems, needs comprehensive implementation
+- Wants ongoing partnership with full AI systems deployment
+- Needs 5+ systems integrated over 6-12 months
+- Score typically: 35-45/50
+
+DELIVERS (Phase 1-3 over 12 months):
+PHASE 1 (Months 1-2):
+- Intent-based prospecting systems (6sense/ZoomInfo + Clay)
+- AI-powered personalization engine (Clay + OpenAI)
+- Interactive assessment tools (Typeform/Outgrow)
+- Multi-channel orchestration (Outreach/Instantly + LinkedIn)
+
+PHASE 2 (Months 3-6):
+- Agentic AI SDR (Outreach with Kaia + AI)
+- Content atomization engine (Descript + Castmagic)
+- Partnership program infrastructure (PartnerStack + Crossbeam)
+- Buyer enablement suite (Navattic + Dock)
+
+PHASE 3 (Months 6-12):
+- ABM orchestration for top accounts (Demandbase/Terminus)
+- AI video personalization (Synthesia/HeyGen)
+- Private executive community (Circle)
+
+**STRATEGIC ALLIANCE (Custom, by invitation only)**
+RECOMMEND IF:
+- Premium organization ($20M+ revenue)
+- Seeks permanent thinking partner, not vendor
+- Long-term strategic relationship desired
+- Executive-level partnership focus
+- Score typically: 45-50/50
+
+DELIVERS:
+- Everything in Architecture tier
+- Unlimited strategic counsel
+- Fractional growth executive role
+- Board-level strategic planning
+- Priority access and white-glove service
+
+AI SYSTEMS MENU (select specific ones they need):
+1. Intent-based prospecting systems (6sense/ZoomInfo + Clay)
+2. AI-powered personalization engine (Clay + OpenAI)
+3. Interactive assessment tools (Typeform/Outgrow)
+4. Multi-channel orchestration (Outreach/Instantly + LinkedIn)
+5. Agentic AI SDR (Outreach with Kaia)
+6. Content atomization engine (Descript + Castmagic)
+7. Partnership program infrastructure (PartnerStack + Crossbeam)
+8. Buyer enablement suite (Navattic + Dock + PandaDoc)
+9. ABM orchestration (Demandbase/Terminus)
+10. AI video personalization (Synthesia/HeyGen)
+11. Executive community platform (Circle)
+12. Data intelligence framework (Segment/RudderStack)
 
 Respond in this EXACT JSON format:
 {
   "totalScore": [number 0-50],
-  "budgetSignals": {
+  "organizationalMaturity": {
     "score": [number 0-15],
     "evidence": "[quote or observation]",
-    "revenueRange": "[estimate if mentioned]"
+    "revenueRange": "[estimate if mentioned]",
+    "employeeCount": "[estimate if mentioned]"
+  },
+  "systemsSophistication": {
+    "score": [number 0-10],
+    "evidence": "[quote or observation]",
+    "currentSystems": ["system 1", "system 2"],
+    "gaps": ["gap 1", "gap 2"]
   },
   "timeline": {
     "score": [number 0-10],
     "evidence": "[quote or observation]",
-    "estimatedTimeline": "[ready now/1 week/2-4 weeks/1-2 months/3+ months]"
+    "estimatedTimeline": "[1-2 weeks/1 month/1-3 months/3+ months]"
   },
   "decisionAuthority": {
     "score": [number 0-10],
@@ -135,34 +193,33 @@ Respond in this EXACT JSON format:
     "evidence": "[quote or observation]",
     "keyPainPoints": ["pain point 1", "pain point 2", "pain point 3"]
   },
-  "strategicFit": {
+  "partnershipReadiness": {
     "score": [number 0-5],
-    "evidence": "[quote or observation]",
-    "industry": "[industry name]"
-  },
-  "agreementToOffer": {
-    "score": [number 0-10],
-    "evidence": "[quote or observation]",
-    "agreedToProposal": [true/false]
+    "evidence": "[quote or observation]"
   },
   "recommendation": {
-    "status": "HOT|WARM|NURTURE",
-    "engagementModel": "Strategic Foundations|Growth Architecture|Strategic Alliance|Custom",
-    "reasoning": "[2-3 sentence explanation]",
-    "specificServices": ["service name 1", "service name 2"],
-    "estimatedValue": "[dollar range if determinable]"
+    "status": "QUALIFIED|REVIEW|NURTURE",
+    "tier": "Strategic Foundations|Growth Architecture|Strategic Alliance",
+    "reasoning": "[2-3 sentence explanation of why this tier fits]",
+    "specificSystems": [
+      "Intent-based prospecting systems",
+      "AI-powered personalization engine",
+      "[other systems from menu above]"
+    ],
+    "estimatedValue": "$25K-75K|$150K-200K|$200K+|Custom",
+    "implementationTimeline": "90 days|6-12 months|Ongoing partnership"
   },
   "nextSteps": {
-    "autoAdvance": [true/false],
-    "action": "Create Sales Call|Manual Review|Move to Nurture",
+    "autoAdvance": [true if score >= 35, false otherwise],
+    "action": "Create Strategy Call|Manual Review|Move to Nurture",
     "notes": "[any important flags or considerations]"
   },
-  "executiveSummary": "[3-4 sentence summary of the call and why this is/isn't a good fit]",
+  "executiveSummary": "[3-4 sentence summary of the call, their challenges, and why this tier/systems package is right for them]",
   "enthusiasmLevel": "high|medium|low",
-  "objections": ["objection 1", "objection 2"] or []
+  "strategicFit": "excellent|good|moderate|poor"
 }
 
-Be precise. Score conservatively. Base everything on actual evidence from the transcript.`;
+Be precise. Score conservatively. Base everything on actual evidence from the transcript. Select specific systems from the menu based on their stated problems and gaps.`;
 
         console.log('[AI Analyzer] Sending transcript to Claude AI...');
 
@@ -195,10 +252,10 @@ Be precise. Score conservatively. Base everything on actual evidence from the tr
             });
         }
 
-        // Determine advancement based on score
-        const shouldAutoAdvance = analysis.totalScore >= 40;
-        const requiresReview = analysis.totalScore >= 30 && analysis.totalScore < 40;
-        const shouldNurture = analysis.totalScore < 30;
+        // Determine advancement based on score and tier
+        const shouldAutoAdvance = analysis.totalScore >= 35;
+        const requiresReview = analysis.totalScore >= 25 && analysis.totalScore < 35;
+        const shouldNurture = analysis.totalScore < 25;
 
         let finalStatus;
         let finalAction;
@@ -213,27 +270,34 @@ Be precise. Score conservatively. Base everything on actual evidence from the tr
             finalAction = 'move_to_nurture';
         }
 
-        // Update discovery call with BOTH old fields (backward compatibility) AND new AI analysis
+        // Update discovery call with tier-based analysis
         const { error: updateError } = await supabase
             .from('discovery_calls')
             .update({
-                // Store transcript
                 transcript: transcript,
                 
-                // OLD FIELDS (for backward compatibility)
+                // Store comprehensive tier analysis
+                ai_analysis: {
+                    ...analysis,
+                    recommendation: {
+                        ...analysis.recommendation,
+                        engagementModel: analysis.recommendation.tier // Map tier to old field name
+                    }
+                },
+                ai_score: analysis.totalScore,
+                recommended_tier: analysis.recommendation.tier,
+                recommended_systems: analysis.recommendation.specificSystems,
+                status: finalStatus,
+                
+                // Legacy fields for backward compatibility
                 key_points: analysis.painSeverity?.keyPainPoints || [],
                 pain_points: analysis.painSeverity?.keyPainPoints || [],
-                budget_mentioned: analysis.budgetSignals?.revenueRange || null,
+                budget_mentioned: analysis.organizationalMaturity?.revenueRange || null,
                 timeline: analysis.timeline?.estimatedTimeline || null,
                 decision_maker: analysis.decisionAuthority?.role === 'Owner' || analysis.decisionAuthority?.role === 'CEO',
                 enthusiasm_level: analysis.enthusiasmLevel || 'medium',
-                objections: analysis.objections || [],
                 notes: analysis.executiveSummary || '',
                 
-                // NEW FIELDS (comprehensive AI analysis)
-                ai_analysis: analysis,
-                ai_score: analysis.totalScore,
-                status: finalStatus,
                 analyzed_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
             })
@@ -246,17 +310,19 @@ Be precise. Score conservatively. Base everything on actual evidence from the tr
         let salesCall = null;
         let emailSent = false;
 
-        // AUTO-ADVANCE: Create Sales Call if score >= 40
+        // AUTO-ADVANCE: Create Strategy Call if score >= 35
         if (shouldAutoAdvance && discoveryCall.contacts) {
-            console.log('[AI Analyzer] 🎯 HOT LEAD - Auto-advancing to Sales Call');
+            console.log('[AI Analyzer] 🎯 QUALIFIED - Auto-advancing to Strategy Call');
 
             const salesCallData = {
                 contact_id: discoveryCall.contacts.id,
                 discovery_call_id: discovery_call_id,
                 status: 'scheduled',
-                notes: `Auto-created from discovery call (Score: ${analysis.totalScore}/50)\n\nRecommended Engagement: ${analysis.recommendation.engagementModel}\n\nKey Services: ${analysis.recommendation.specificServices.join(', ')}\n\n${analysis.executiveSummary}`,
-                recommended_engagement: analysis.recommendation.engagementModel,
-                recommended_services: analysis.recommendation.specificServices,
+                recommended_tier: analysis.recommendation.tier,
+                recommended_systems: analysis.recommendation.specificSystems,
+                estimated_value: analysis.recommendation.estimatedValue,
+                implementation_timeline: analysis.recommendation.implementationTimeline,
+                notes: `Auto-created from discovery call (Score: ${analysis.totalScore}/50)\n\nRecommended Tier: ${analysis.recommendation.tier}\n\nKey Systems Needed:\n${analysis.recommendation.specificSystems.map(s => `- ${s}`).join('\n')}\n\n${analysis.executiveSummary}`,
                 auto_created: true,
                 source: 'Automated from Discovery',
                 created_at: new Date().toISOString(),
@@ -270,16 +336,17 @@ Be precise. Score conservatively. Base everything on actual evidence from the tr
                 .single();
 
             if (salesError) {
-                console.error('[AI Analyzer] Error creating sales call:', salesError);
+                console.error('[AI Analyzer] Error creating strategy call:', salesError);
             } else {
                 salesCall = newSalesCall;
-                console.log('[AI Analyzer] ✅ Sales call created:', salesCall.id);
+                console.log('[AI Analyzer] ✅ Strategy call created:', salesCall.id);
 
                 // Update contact stage to "sales"
                 await supabase
                     .from('contacts')
                     .update({ 
                         stage: 'sales',
+                        recommended_tier: analysis.recommendation.tier,
                         updated_at: new Date().toISOString()
                     })
                     .eq('id', discoveryCall.contacts.id);
@@ -293,7 +360,8 @@ Be precise. Score conservatively. Base everything on actual evidence from the tr
                             sales_call_id: salesCall.id,
                             contact_name: contactName,
                             company: company,
-                            engagement_model: analysis.recommendation.engagementModel
+                            recommended_tier: analysis.recommendation.tier,
+                            systems: analysis.recommendation.specificSystems
                         })
                     });
 
@@ -309,12 +377,12 @@ Be precise. Score conservatively. Base everything on actual evidence from the tr
             }
         }
 
-        // MANUAL REVIEW: Flag for review if 30-39 points
+        // MANUAL REVIEW: Flag for review if 25-34 points
         if (requiresReview) {
-            console.log('[AI Analyzer] ⚠️ WARM LEAD - Flagged for manual review');
+            console.log('[AI Analyzer] ⚠️ REVIEW NEEDED - Flagged for manual evaluation');
         }
 
-        // NURTURE: Move to nurture campaign if < 30 points
+        // NURTURE: Move to nurture campaign if < 25 points
         if (shouldNurture) {
             console.log('[AI Analyzer] 📧 NURTURE - Moving to nurture campaign');
             
@@ -339,14 +407,17 @@ Be precise. Score conservatively. Base everything on actual evidence from the tr
                 analysis: analysis,
                 action: finalAction,
                 status: finalStatus,
+                recommendedTier: analysis.recommendation.tier,
+                recommendedSystems: analysis.recommendation.specificSystems,
+                estimatedValue: analysis.recommendation.estimatedValue,
                 salesCallCreated: !!salesCall,
                 salesCallId: salesCall?.id,
                 emailSent: emailSent,
                 message: shouldAutoAdvance 
-                    ? `🎯 HOT LEAD (${analysis.totalScore}/50) - Sales Call created and strategy email sent!`
+                    ? `🎯 QUALIFIED (${analysis.totalScore}/50) - ${analysis.recommendation.tier} recommended, Strategy Call created!`
                     : requiresReview
-                    ? `⚠️ WARM LEAD (${analysis.totalScore}/50) - Flagged for your review`
-                    : `📧 NURTURE (${analysis.totalScore}/50) - Moved to nurture campaign`
+                    ? `⚠️ REVIEW NEEDED (${analysis.totalScore}/50) - ${analysis.recommendation.tier} suggested, needs your evaluation`
+                    : `📧 NURTURE (${analysis.totalScore}/50) - Not ready for partnership, moved to nurture`
             }
         });
 
