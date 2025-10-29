@@ -169,12 +169,12 @@ Score 35+ = Qualified for podcast interview`;
 
         const emailBody = `Hi ${firstName},
 
-Thanks for taking the time to speak with me during our pre-qualification call! ${personalNote}I really enjoyed learning about ${companyName} and hearing your perspective on ${challengesText}.
+Thanks for taking the time to speak with me during our pre-podcast call! ${personalNote}I really enjoyed learning about ${companyName} and hearing your perspective on ${challengesText}.
 
 Based on our conversation, I think there's a great opportunity for us to dive deeper into your growth strategy. I'd love to invite you to be a guest on my podcast, where we explore ${topicsText} with business leaders like yourself.
 
 **About the Podcast:**
-The Leadership Intelligence System™ podcast features in-depth conversations with executives and business owners who are scaling their operations and overcoming real growth challenges. It's a 30-minute discussion where we can:
+The Modern Design podcast features in-depth conversations with executives and business owners who are scaling their operations and overcoming real growth challenges. It's a 30-minute discussion where we can:
 
 • Explore the specific challenges you're facing with ${challengesText}
 • Share proven strategies that have worked for similar businesses
@@ -197,7 +197,7 @@ Best regards,
 
 Maggie Forbes
 Founder, Maggie Forbes Strategies
-The Leadership Intelligence System™
+AI Systems for Human-Led Growth
 
 📧 maggie@maggieforbesstrategies.com
 🌐 www.maggieforbesstrategies.com`;
