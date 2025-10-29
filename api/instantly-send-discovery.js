@@ -81,7 +81,7 @@ Looking forward to it!
 
 Maggie Forbes
 Founder, Maggie Forbes Strategies
-The Leadership Intelligence System™`;
+AI Systems for Human-Led Growth`;
 
       // Send via Instantly API
       const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/lead/add', {
