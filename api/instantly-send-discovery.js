@@ -3,10 +3,9 @@ const { createClient } = require('@supabase/supabase-js');
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
-);
 
 const INSTANTLY_API_KEY = process.env.INSTANTLY_API_KEY;
-const INSTANTLY_CAMPAIGN_ID = process.env.INSTANTLY_DISCOVERY_CAMPAIGN_ID; // We'll add this
+const INSTANTLY_CAMPAIGN_ID = process.env.INSTANTLY_DISCOVERY_CAMPAIGN_ID;
 
 /**
  * Send Discovery Call Invitation via Instantly
@@ -68,33 +67,21 @@ module.exports = async (req, res) => {
       const firstName = contact.name?.split(' ')[0] || 'there';
       const company = contact.company || 'your business';
 
-      // Prepare email content
-      const emailSubject = `Let's Continue Our Conversation, ${firstName}!`;
+      // IMPROVED EMAIL TEMPLATE
+      const emailSubject = `Let's explore if we're a fit`;
       
       const emailBody = `Hi ${firstName},
 
-Thank you for such an engaging conversation on our podcast! I really enjoyed learning about ${company} and the exciting work you're doing.
+Thanks for our great podcast conversation! I'd love to continue our discussion and explore how The Leadership Intelligence System™ could help ${company} achieve your growth goals.
 
-Based on our discussion, I believe there are some powerful opportunities we could explore together to help you achieve your growth goals.
+Schedule a discovery call:
+https://calendly.com/maggie-maggieforbesstrategies/discovery-call
 
-I'd love to schedule a discovery call to dive deeper into:
-✓ Your specific growth challenges and objectives
-✓ Strategies that could accelerate your results
-✓ How The Leadership Intelligence System™ could support your vision
+Looking forward to it!
 
-Please book a time that works best for you:
-👉 https://calendly.com/maggie-maggieforbesstrategies/discovery-call
-
-This will be a focused 45-minute conversation where we can explore if there's a fit to work together.
-
-Looking forward to our next conversation!
-
-Best regards,
 Maggie Forbes
 Founder, Maggie Forbes Strategies
-The Leadership Intelligence System™
-
-P.S. If none of the available times work for you, just reply to this email and we'll find a time that fits your schedule.`;
+The Leadership Intelligence System™`;
 
       // Send via Instantly API
       const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/lead/add', {
