@@ -199,7 +199,6 @@ Maggie Forbes
 Founder, Maggie Forbes Strategies
 AI Systems for Human-Led Growth
 
-📧 maggie@maggieforbesstrategies.com
 🌐 www.maggieforbesstrategies.com`;
 
         const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/email/send', {
