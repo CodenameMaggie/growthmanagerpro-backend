@@ -14,84 +14,128 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // GET - Fetch all contacts organized by pipeline stage
+        // GET - Fetch all contacts organized by 5-stage pipeline
         if (req.method === 'GET') {
-            // Fetch all contacts with their current stage
-            const { data: contacts, error } = await supabase
-                .from('contacts')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-
-            // Define pipeline stages in order
-            const stages = [
-                { name: 'New Lead', key: 'lead', icon: '🆕' },
-                { name: 'Podcast Interview', key: 'podcast', icon: '🎙️' },
-                { name: 'Discovery Call', key: 'discovery', icon: '🔍' },
-                { name: 'Sales Call', key: 'sales', icon: '💼' },
-                { name: 'Proposal', key: 'proposal', icon: '📄' },
-                { name: 'Negotiation', key: 'negotiation', icon: '🤝' },
-                { name: 'Closed Won', key: 'closed', icon: '✅' },
-                { name: 'Lost', key: 'lost', icon: '❌' }
+            // Define the 5 pipeline stages
+            const stageDefinitions = [
+                { 
+                    name: 'Pre-Qualified', 
+                    key: 'pre-qualified', 
+                    icon: '📋',
+                    source: 'contacts',
+                    filter: { stage: 'pre-qualified' }
+                },
+                { 
+                    name: 'Podcast Interview', 
+                    key: 'podcast', 
+                    icon: '🎙️',
+                    source: 'podcast_interviews',
+                    filter: { status: 'completed' }
+                },
+                { 
+                    name: 'Discovery Call', 
+                    key: 'discovery', 
+                    icon: '🔍',
+                    source: 'discovery_calls',
+                    filter: { status: ['scheduled', 'completed'] }
+                },
+                { 
+                    name: 'Strategy Call', 
+                    key: 'strategy', 
+                    icon: '💼',
+                    source: 'strategy_calls',
+                    filter: { status: ['scheduled', 'completed'] }
+                },
+                { 
+                    name: 'Active Deals', 
+                    key: 'deals', 
+                    icon: '🤝',
+                    source: 'deals',
+                    filter: { status: ['active', 'pending'] }
+                }
             ];
 
-            // Organize contacts by stage
-            const pipeline = stages.map(stage => {
-                // Filter contacts in this stage
-                const stageContacts = (contacts || []).filter(contact => {
-                    const contactStage = contact.stage || contact.status || 'lead';
-                    return contactStage.toLowerCase() === stage.key;
-                });
+            // Fetch data for each stage
+            const stages = await Promise.all(stageDefinitions.map(async (stageDef) => {
+                try {
+                    let query = supabase.from(stageDef.source).select('*');
+                    
+                    // Apply filters
+                    Object.entries(stageDef.filter).forEach(([field, value]) => {
+                        if (Array.isArray(value)) {
+                            query = query.in(field, value);
+                        } else {
+                            query = query.eq(field, value);
+                        }
+                    });
 
-                return {
-                    name: stage.name,
-                    key: stage.key,
-                    icon: stage.icon,
-                    count: stageContacts.length,
-                    prospects: stageContacts.map(contact => ({
-                        id: contact.id,
-                        name: contact.name,
-                        company: contact.company || 'No company',
-                        email: contact.email,
-                        phone: contact.phone,
-                        stage: contact.stage || contact.status,
-                        notes: contact.notes,
-                        lastActivity: contact.last_activity || contact.updated_at,
-                        createdAt: contact.created_at
-                    }))
-                };
-            });
+                    const { data, error } = await query;
 
-            // Calculate overall stats
-            const totalContacts = contacts?.length || 0;
-            const activeContacts = contacts?.filter(c => 
-                !['lost', 'closed'].includes((c.stage || c.status || '').toLowerCase())
-            ).length || 0;
+                    if (error) {
+                        console.error(`[Pipeline] Error fetching ${stageDef.key}:`, error);
+                        return {
+                            ...stageDef,
+                            count: 0,
+                            prospects: []
+                        };
+                    }
+
+                    // Transform data to standard format
+                    const prospects = (data || []).map(item => ({
+                        id: item.id,
+                        name: item.name || item.guest_name || item.client_name || item.contact_name || 'Unnamed',
+                        email: item.email || item.guest_email || item.client_email || '',
+                        company: item.company || item.guest_company || item.client_company || '',
+                        phone: item.phone || '',
+                        score: item.podcast_score || item.qualification_score || 0,
+                        podcastScore: item.podcast_score || 0,
+                        createdAt: item.created_at || item.interview_date || item.call_date,
+                        updatedAt: item.updated_at || item.created_at,
+                        stage: stageDef.key,
+                        notes: item.notes || ''
+                    }));
+
+                    return {
+                        name: stageDef.name,
+                        key: stageDef.key,
+                        icon: stageDef.icon,
+                        count: prospects.length,
+                        prospects: prospects
+                    };
+
+                } catch (error) {
+                    console.error(`[Pipeline] Error processing ${stageDef.key}:`, error);
+                    return {
+                        ...stageDef,
+                        count: 0,
+                        prospects: []
+                    };
+                }
+            }));
+
+            // Calculate statistics
+            const totalContacts = stages.reduce((sum, stage) => sum + stage.count, 0);
+            const activeContacts = stages
+                .filter(s => s.key !== 'deals')
+                .reduce((sum, stage) => sum + stage.count, 0);
             
-            const closedWon = contacts?.filter(c => 
-                (c.stage || c.status || '').toLowerCase() === 'closed'
-            ).length || 0;
-
-            const conversionRate = totalContacts > 0 
-                ? ((closedWon / totalContacts) * 100).toFixed(1) 
-                : 0;
+            const closedWon = stages.find(s => s.key === 'deals')?.count || 0;
+            const fromPodcast = stages.find(s => s.key === 'podcast')?.count || 0;
+            const conversionRate = totalContacts > 0 ? (closedWon / totalContacts * 100) : 0;
 
             return res.status(200).json({
                 success: true,
                 data: {
-                    stages: pipeline,
+                    stages: stages,
                     stats: {
                         totalContacts,
                         activeContacts,
                         closedWon,
-                        conversionRate: parseFloat(conversionRate),
-                        stageBreakdown: pipeline.map(s => ({
-                            stage: s.name,
-                            count: s.count
-                        }))
+                        fromPodcast,
+                        conversionRate: parseFloat(conversionRate.toFixed(2))
                     }
-                }
+                },
+                timestamp: new Date().toISOString()
             });
         }
 
