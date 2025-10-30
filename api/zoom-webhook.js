@@ -89,8 +89,9 @@ module.exports = async (req, res) => {
 function determineCallType(topic) {
   const topicLower = topic.toLowerCase();
   
-  if (topicLower.includes('pre-qual') || topicLower.includes('prequal') || topicLower.includes('pre qual')) {
+ if (topicLower.includes('pre-qual') || topicLower.includes('prequal') || topicLower.includes('pre qual') || topicLower.includes('pre-podcast')) {
     return 'prequal';
+}
   }
   if (topicLower.includes('podcast')) {
     return 'podcast';
