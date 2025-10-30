@@ -9,8 +9,9 @@ const zoomAccountId = process.env.ZOOM_ACCOUNT_ID;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
- * Zoom Webhook Handler - Unified for All Call Types
+ * Zoom Webhook Handler - WITH AUTOMATIC VTT CLEANING
  * Handles: Podcast, Discovery, Strategy, and Pre-Qualification Calls
+ * NOW: Automatically cleans VTT transcripts before database insertion
  */
 module.exports = async (req, res) => {
   // Enable CORS
@@ -50,18 +51,31 @@ module.exports = async (req, res) => {
 
       // Process each recording file
       for (const file of recordingFiles) {
+        // Handle video recordings
         if (file.file_type === 'MP4' || file.file_type === 'M4A') {
-          // Download recording
           const recordingUrl = await downloadRecording(file.download_url, accessToken);
           
-          // Transcribe recording
-          const transcript = await transcribeRecording(recordingUrl);
+          // Store recording URL immediately (don't wait for transcription)
+          await updateCallRecord(callType, meetingId, topic, recordingUrl, null);
+        }
 
-          // Update the appropriate database table
-          await updateCallRecord(callType, meetingId, topic, recordingUrl, transcript);
+        // Handle VTT transcript files - NEW: WITH AUTOMATIC CLEANING
+        if (file.file_type === 'TRANSCRIPT' || file.recording_type === 'audio_transcript') {
+          console.log('Processing VTT transcript file...');
+          
+          // Download VTT transcript
+          const vttContent = await downloadTranscript(file.download_url, accessToken);
+          
+          // CLEAN the VTT content before saving
+          const cleanedTranscript = cleanVTTTranscript(vttContent);
+          
+          console.log(`VTT cleaned: ${cleanedTranscript.length} characters, apostrophes removed`);
+          
+          // Update with cleaned transcript
+          await updateCallRecord(callType, meetingId, topic, null, cleanedTranscript);
 
-          // If pre-qual call and transcription successful, trigger AI analysis
-          if (callType === 'prequal' && transcript) {
+          // If pre-qual call, trigger AI analysis
+          if (callType === 'prequal' && cleanedTranscript) {
             await triggerPreQualAnalysis(meetingId);
           }
         }
@@ -69,7 +83,7 @@ module.exports = async (req, res) => {
 
       return res.status(200).json({ 
         success: true, 
-        message: `${callType} call recording processed`,
+        message: `${callType} call recording and transcript processed`,
         meetingId 
       });
     }
@@ -84,14 +98,66 @@ module.exports = async (req, res) => {
 };
 
 /**
+ * NEW: Clean VTT transcript for SQL-safe insertion
+ * Removes apostrophes, timestamps, and metadata
+ */
+function cleanVTTTranscript(vttContent) {
+  const lines = vttContent.split('\n');
+  let cleanedLines = [];
+
+  for (let line of lines) {
+    line = line.trim();
+
+    // Skip VTT metadata
+    if (
+      line === 'WEBVTT' ||
+      line === '' ||
+      line.match(/^\d+$/) ||
+      line.match(/\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}/) ||
+      line.startsWith('NOTE') ||
+      line.startsWith('Kind:') ||
+      line.startsWith('Language:')
+    ) {
+      continue;
+    }
+
+    // Remove problematic characters for SQL
+    let cleanLine = line
+      .replace(/'/g, '')    // Remove apostrophes
+      .replace(/'/g, '')    // Remove fancy apostrophes
+      .replace(/`/g, '')    // Remove backticks
+      .replace(/"/g, '"')   // Normalize quotes
+      .replace(/"/g, '"');  // Normalize quotes
+
+    if (cleanLine) {
+      cleanedLines.push(cleanLine);
+    }
+  }
+
+  return cleanedLines.join('\n');
+}
+
+/**
+ * NEW: Download transcript from Zoom
+ */
+async function downloadTranscript(downloadUrl, accessToken) {
+  const response = await fetch(downloadUrl, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    }
+  });
+
+  return await response.text();
+}
+
+/**
  * Determine call type from meeting topic
  */
 function determineCallType(topic) {
   const topicLower = topic.toLowerCase();
   
- if (topicLower.includes('pre-qual') || topicLower.includes('prequal') || topicLower.includes('pre qual') || topicLower.includes('pre-podcast')) {
+  if (topicLower.includes('pre-qual') || topicLower.includes('prequal') || topicLower.includes('pre qual') || topicLower.includes('pre-podcast')) {
     return 'prequal';
-}
   }
   if (topicLower.includes('podcast')) {
     return 'podcast';
@@ -155,46 +221,26 @@ async function downloadRecording(downloadUrl, accessToken) {
 }
 
 /**
- * Transcribe recording using your transcription service
- * Replace with your actual transcription service (Deepgram, Assembly AI, etc.)
- */
-async function transcribeRecording(recordingUrl) {
-  // TODO: Implement actual transcription service
-  // Example with Deepgram:
-  /*
-  const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
-  const response = await fetch('https://api.deepgram.com/v1/listen', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Token ${deepgramApiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      url: recordingUrl,
-      punctuate: true,
-      utterances: true
-    })
-  });
-  
-  const result = await response.json();
-  return result.results.channels[0].alternatives[0].transcript;
-  */
-  
-  console.log('Transcription would happen here for:', recordingUrl);
-  return null; // Return null until transcription is implemented
-}
-
-/**
  * Update call record in appropriate table
+ * UPDATED: Handles separate recording URL and transcript updates
  */
 async function updateCallRecord(callType, meetingId, topic, recordingUrl, transcript) {
   const updates = {
     zoom_meeting_id: meetingId,
-    recording_url: recordingUrl,
-    transcript: transcript,
-    call_status: transcript ? 'completed' : 'recorded',
     updated_at: new Date().toISOString()
   };
+
+  // Add recording URL if provided
+  if (recordingUrl) {
+    updates.recording_url = recordingUrl;
+    updates.call_status = 'recorded';
+  }
+
+  // Add transcript if provided (already cleaned!)
+  if (transcript) {
+    updates.transcript = transcript;
+    updates.call_status = 'completed';
+  }
 
   let tableName;
   let matchField = 'zoom_meeting_id';
