@@ -9,9 +9,9 @@ const zoomAccountId = process.env.ZOOM_ACCOUNT_ID;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
- * Zoom Webhook Handler - WITH AUTOMATIC VTT CLEANING
+ * Zoom Webhook Handler - WITH AUTOMATIC AI ANALYSIS FOR ALL CALL TYPES
  * Handles: Podcast, Discovery, Strategy, and Pre-Qualification Calls
- * NOW: Automatically cleans VTT transcripts before database insertion
+ * Auto-triggers AI analysis after transcription
  */
 module.exports = async (req, res) => {
   // Enable CORS
@@ -36,13 +36,13 @@ module.exports = async (req, res) => {
       const topic = payload.object.topic;
       const recordingFiles = payload.object.recording_files;
 
-      console.log(`Recording completed for meeting: ${meetingId} - ${topic}`);
+      console.log(`[Zoom Webhook] Recording completed for meeting: ${meetingId} - ${topic}`);
 
       // Determine call type from meeting topic
       const callType = determineCallType(topic);
       
       if (!callType) {
-        console.log('Meeting topic does not match any tracked call types');
+        console.log('[Zoom Webhook] Meeting topic does not match any tracked call types');
         return res.status(200).json({ message: 'Not a tracked call type' });
       }
 
@@ -59,9 +59,9 @@ module.exports = async (req, res) => {
           await updateCallRecord(callType, meetingId, topic, recordingUrl, null);
         }
 
-        // Handle VTT transcript files - NEW: WITH AUTOMATIC CLEANING
+        // Handle VTT transcript files - WITH AUTOMATIC CLEANING
         if (file.file_type === 'TRANSCRIPT' || file.recording_type === 'audio_transcript') {
-          console.log('Processing VTT transcript file...');
+          console.log('[Zoom Webhook] Processing VTT transcript file...');
           
           // Download VTT transcript
           const vttContent = await downloadTranscript(file.download_url, accessToken);
@@ -69,14 +69,24 @@ module.exports = async (req, res) => {
           // CLEAN the VTT content before saving
           const cleanedTranscript = cleanVTTTranscript(vttContent);
           
-          console.log(`VTT cleaned: ${cleanedTranscript.length} characters, apostrophes removed`);
+          console.log(`[Zoom Webhook] VTT cleaned: ${cleanedTranscript.length} characters`);
           
           // Update with cleaned transcript
           await updateCallRecord(callType, meetingId, topic, null, cleanedTranscript);
-
-          // If pre-qual call, trigger AI analysis
-          if (callType === 'prequal' && cleanedTranscript) {
-            await triggerPreQualAnalysis(meetingId);
+          
+          // ⚡ AUTO-TRIGGER AI ANALYSIS FOR ALL CALL TYPES
+          if (cleanedTranscript) {
+            console.log(`[Zoom Webhook] Auto-triggering ${callType} AI analysis...`);
+            
+            if (callType === 'prequal') {
+              await triggerPreQualAnalysis(meetingId);
+            } else if (callType === 'podcast') {
+              await triggerPodcastAnalysis(meetingId);
+            } else if (callType === 'discovery') {
+              await triggerDiscoveryAnalysis(meetingId);
+            } else if (callType === 'strategy') {
+              await triggerStrategyAnalysis(meetingId);
+            }
           }
         }
       }
@@ -92,13 +102,13 @@ module.exports = async (req, res) => {
     return res.status(200).json({ message: 'Event received but not processed' });
 
   } catch (error) {
-    console.error('Zoom webhook error:', error);
+    console.error('[Zoom Webhook] Error:', error);
     return res.status(500).json({ error: error.message });
   }
 };
 
 /**
- * NEW: Clean VTT transcript for SQL-safe insertion
+ * Clean VTT transcript for SQL-safe insertion
  * Removes apostrophes, timestamps, and metadata
  */
 function cleanVTTTranscript(vttContent) {
@@ -138,7 +148,7 @@ function cleanVTTTranscript(vttContent) {
 }
 
 /**
- * NEW: Download transcript from Zoom
+ * Download transcript from Zoom
  */
 async function downloadTranscript(downloadUrl, accessToken) {
   const response = await fetch(downloadUrl, {
@@ -222,7 +232,6 @@ async function downloadRecording(downloadUrl, accessToken) {
 
 /**
  * Update call record in appropriate table
- * UPDATED: Handles separate recording URL and transcript updates
  */
 async function updateCallRecord(callType, meetingId, topic, recordingUrl, transcript) {
   const updates = {
@@ -250,13 +259,14 @@ async function updateCallRecord(callType, meetingId, topic, recordingUrl, transc
       tableName = 'pre_qualification_calls';
       break;
     case 'podcast':
-      tableName = 'podcast_calls';
+      tableName = 'podcast_interviews';  // Note: uses podcast_interviews table
+      updates.transcript_text = transcript;  // podcast uses transcript_text field
       break;
     case 'discovery':
       tableName = 'discovery_calls';
       break;
     case 'strategy':
-      tableName = 'strategy_calls';
+      tableName = 'sales_calls';  // Note: strategy calls use sales_calls table
       break;
     default:
       throw new Error(`Unknown call type: ${callType}`);
@@ -277,7 +287,8 @@ async function updateCallRecord(callType, meetingId, topic, recordingUrl, transc
       .eq('id', existing.id);
 
     if (error) throw error;
-    console.log(`Updated ${callType} call record:`, existing.id);
+
+    console.log(`[Zoom Webhook] Updated ${callType} call record:`, existing.id);
   } else {
     // Create new record if it doesn't exist
     const { error } = await supabase
@@ -288,7 +299,8 @@ async function updateCallRecord(callType, meetingId, topic, recordingUrl, transc
       });
 
     if (error) throw error;
-    console.log(`Created new ${callType} call record for meeting:`, meetingId);
+
+    console.log(`[Zoom Webhook] Created new ${callType} call record for meeting:`, meetingId);
   }
 }
 
@@ -297,6 +309,8 @@ async function updateCallRecord(callType, meetingId, topic, recordingUrl, transc
  */
 async function triggerPreQualAnalysis(meetingId) {
   try {
+    console.log('[Zoom Webhook] Triggering pre-qual AI analysis...');
+
     // Get the pre-qual call record
     const { data: call, error } = await supabase
       .from('pre_qualification_calls')
@@ -305,12 +319,14 @@ async function triggerPreQualAnalysis(meetingId) {
       .single();
 
     if (error || !call) {
-      console.error('Could not find pre-qual call:', error);
+      console.error('[Zoom Webhook] Could not find pre-qual call:', error);
       return;
     }
 
-    // Call the AI analysis API
-    const analysisUrl = `${process.env.VERCEL_URL || 'http://localhost:3000'}/api/ai-analyze-prequal`;
+    // Call the AI analyzer
+    const analysisUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}/api/ai-analyzer`
+      : 'http://localhost:3000/api/ai-analyzer';
     
     const response = await fetch(analysisUrl, {
       method: 'POST',
@@ -318,6 +334,7 @@ async function triggerPreQualAnalysis(meetingId) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        action: 'analyze-prequal',
         callId: call.id
       })
     });
@@ -327,9 +344,171 @@ async function triggerPreQualAnalysis(meetingId) {
     }
 
     const result = await response.json();
-    console.log('Pre-qual AI analysis triggered:', result);
+    console.log('[Zoom Webhook] ✅ Pre-qual AI analysis complete:', result.success);
 
   } catch (error) {
-    console.error('Error triggering pre-qual analysis:', error);
+    console.error('[Zoom Webhook] ❌ Error triggering pre-qual analysis:', error);
+  }
+}
+
+/**
+ * ⚡ NEW: Trigger AI analysis for podcast interviews
+ */
+async function triggerPodcastAnalysis(meetingId) {
+  try {
+    console.log('[Zoom Webhook] Triggering podcast AI analysis...');
+
+    // Get the podcast interview record
+    const { data: interview, error } = await supabase
+      .from('podcast_interviews')
+      .select('*')
+      .eq('zoom_meeting_id', meetingId)
+      .single();
+
+    if (error || !interview) {
+      console.error('[Zoom Webhook] Could not find podcast interview:', error);
+      return;
+    }
+
+    if (!interview.transcript_text) {
+      console.error('[Zoom Webhook] No transcript available for podcast');
+      return;
+    }
+
+    // Call the AI analyzer
+    const analysisUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}/api/ai-analyzer`
+      : 'http://localhost:3000/api/ai-analyzer';
+    
+    const response = await fetch(analysisUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'analyze-podcast',
+        interview_id: interview.id,
+        transcript: interview.transcript_text
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`AI analysis failed: ${response.statusText} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('[Zoom Webhook] ✅ Podcast AI analysis complete:', result.success);
+
+  } catch (error) {
+    console.error('[Zoom Webhook] ❌ Error triggering podcast analysis:', error);
+  }
+}
+
+/**
+ * ⚡ NEW: Trigger AI analysis for discovery calls
+ */
+async function triggerDiscoveryAnalysis(meetingId) {
+  try {
+    console.log('[Zoom Webhook] Triggering discovery AI analysis...');
+
+    // Get the discovery call record
+    const { data: discoveryCall, error } = await supabase
+      .from('discovery_calls')
+      .select('*')
+      .eq('zoom_meeting_id', meetingId)
+      .single();
+
+    if (error || !discoveryCall) {
+      console.error('[Zoom Webhook] Could not find discovery call:', error);
+      return;
+    }
+
+    if (!discoveryCall.transcript) {
+      console.error('[Zoom Webhook] No transcript available for discovery call');
+      return;
+    }
+
+    // Call the AI analyzer
+    const analysisUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}/api/ai-analyzer`
+      : 'http://localhost:3000/api/ai-analyzer';
+    
+    const response = await fetch(analysisUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'analyze-discovery',
+        discovery_call_id: discoveryCall.id,
+        transcript: discoveryCall.transcript
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`AI analysis failed: ${response.statusText} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('[Zoom Webhook] ✅ Discovery AI analysis complete:', result.success);
+
+  } catch (error) {
+    console.error('[Zoom Webhook] ❌ Error triggering discovery analysis:', error);
+  }
+}
+
+/**
+ * ⚡ NEW: Trigger AI analysis for strategy/sales calls
+ */
+async function triggerStrategyAnalysis(meetingId) {
+  try {
+    console.log('[Zoom Webhook] Triggering strategy AI analysis...');
+
+    // Get the sales call record
+    const { data: salesCall, error } = await supabase
+      .from('sales_calls')
+      .select('*')
+      .eq('zoom_meeting_id', meetingId)
+      .single();
+
+    if (error || !salesCall) {
+      console.error('[Zoom Webhook] Could not find sales/strategy call:', error);
+      return;
+    }
+
+    if (!salesCall.transcript) {
+      console.error('[Zoom Webhook] No transcript available for strategy call');
+      return;
+    }
+
+    // Call the AI analyzer
+    const analysisUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}/api/ai-analyzer`
+      : 'http://localhost:3000/api/ai-analyzer';
+    
+    const response = await fetch(analysisUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        action: 'analyze-sales',
+        sales_call_id: salesCall.id,
+        transcript: salesCall.transcript
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`AI analysis failed: ${response.statusText} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('[Zoom Webhook] ✅ Strategy AI analysis complete:', result.success);
+
+  } catch (error) {
+    console.error('[Zoom Webhook] ❌ Error triggering strategy analysis:', error);
   }
 }
