@@ -1,4 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
+const {
+  getStoredSender,
+  getAssignedSender,
+  storeSenderAssignment,
+  getNextAvailablePool,
+  SENDER_POOLS
+} = require('./instantly-manager');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -92,7 +99,8 @@ module.exports = async (req, res) => {
                         createdAt: item.created_at || item.interview_date || item.call_date,
                         updatedAt: item.updated_at || item.created_at,
                         stage: stageDef.key,
-                        notes: item.notes || ''
+                        notes: item.notes || '',
+                        assignedSender: item.assigned_sender_email || null
                     }));
 
                     return {
@@ -139,9 +147,9 @@ module.exports = async (req, res) => {
             });
         }
 
-        // POST - Move contact to different stage
+        // POST - Move contact to different stage (SENDER-AWARE)
         if (req.method === 'POST') {
-            const { contactId, stage, notes } = req.body;
+            const { contactId, stage, notes, email } = req.body;
 
             if (!contactId || !stage) {
                 return res.status(400).json({
@@ -150,6 +158,55 @@ module.exports = async (req, res) => {
                 });
             }
 
+            console.log(`[Pipeline] Moving contact ${contactId} to stage: ${stage}`);
+
+            // ============================================
+            // SENDER TRACKING LOGIC
+            // ============================================
+            let contactEmail = email;
+            
+            // If email not provided, fetch it
+            if (!contactEmail) {
+                const { data: contact } = await supabase
+                    .from('contacts')
+                    .select('email')
+                    .eq('id', contactId)
+                    .single();
+                
+                contactEmail = contact?.email;
+            }
+
+            if (contactEmail) {
+                // Check if sender is already tracked
+                let senderEmail = await getStoredSender(contactEmail);
+                
+                if (!senderEmail) {
+                    console.log('[Pipeline] No sender stored, checking Instantly...');
+                    senderEmail = await getAssignedSender(contactEmail);
+                    
+                    if (senderEmail) {
+                        console.log('[Pipeline] Found sender from Instantly:', senderEmail);
+                        await storeSenderAssignment(contactEmail, senderEmail);
+                    } else if (stage === 'podcast' || stage === 'discovery') {
+                        // Assign sender for early stages
+                        console.log('[Pipeline] Assigning new sender for stage:', stage);
+                        const pool = await getNextAvailablePool();
+                        const poolSenders = SENDER_POOLS[pool].senders;
+                        senderEmail = poolSenders[0];
+                        
+                        console.log('[Pipeline] Assigned Pool', pool, 'sender:', senderEmail);
+                        await storeSenderAssignment(contactEmail, senderEmail);
+                    }
+                }
+                
+                if (senderEmail) {
+                    console.log('[Pipeline] Contact tracked with sender:', senderEmail);
+                }
+            }
+
+            // ============================================
+            // UPDATE CONTACT STAGE
+            // ============================================
             const updateData = {
                 stage: stage,
                 updated_at: new Date().toISOString()
