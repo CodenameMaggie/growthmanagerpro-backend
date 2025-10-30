@@ -688,11 +688,138 @@ async function analyzePodcastTranscript(transcript) {
 TRANSCRIPT:
 ${transcript}
 
-Provide analysis in JSON format with: prospect_agreement, intro, questions_flow, close_next_steps, and overall_insights sections.
+Provide a detailed analysis in the following JSON format:
 
-CRITICAL: Look for prospect agreement to schedule discovery call or next meeting. Set agreed_to_discovery to TRUE only if clear evidence exists.
+{
+  "prospect_agreement": {
+    "agreed_to_discovery": true/false,
+    "agreed_to_next_meeting": true/false,
+    "confidence": "high/medium/low",
+    "evidence": ["Quote from transcript showing agreement", "Another quote"],
+    "context": "Explain what the prospect agreed to and how enthusiastic they were"
+  },
+  "intro": {
+    "total_score": 0-10,
+    "rapport_energy": {
+      "score": 0-10,
+      "feedback": "detailed feedback here",
+      "examples": ["quote from transcript", "another quote"],
+      "script_example": "suggested improvement script"
+    },
+    "credibility": {
+      "score": 0-10,
+      "feedback": "detailed feedback",
+      "examples": ["quotes"],
+      "script_example": "improvement"
+    },
+    "frame_context_intro": {
+      "score": 0-10,
+      "feedback": "Was guest properly introduced?",
+      "examples": ["quotes or lack thereof"],
+      "script_example": "Today, we're thrilled to welcome [Guest Name]..."
+    },
+    "frame_context_expectations": {
+      "score": 0-10,
+      "feedback": "Were expectations set?",
+      "examples": ["quotes"],
+      "script_example": "improvement"
+    },
+    "hook": {
+      "score": 0-10,
+      "feedback": "Was there a compelling opening?",
+      "examples": ["quotes or lack"],
+      "script_example": "Have you ever wondered..."
+    }
+  },
+  "questions_flow": {
+    "total_score": 0-10,
+    "question_quality": {
+      "score": 0-10,
+      "feedback": "Were questions relevant and thought-provoking?",
+      "examples": ["quote question 1", "quote question 2"]
+    },
+    "deep_diving": {
+      "score": 0-10,
+      "feedback": "Did host follow up and probe deeper?",
+      "examples": ["follow-up examples"],
+      "script_example": "improvement"
+    },
+    "pacing": {
+      "score": 0-10,
+      "feedback": "Was conversation well-paced?",
+      "script_example": "improvement"
+    },
+    "transitions": {
+      "score": 0-10,
+      "feedback": "Were topic transitions smooth?",
+      "examples": ["transition quotes"],
+      "script_example": "improvement"
+    },
+    "guest_management": {
+      "score": 0-10,
+      "feedback": "Did host make guest shine?",
+      "examples": ["positive affirmations"]
+    },
+    "audience_awareness": {
+      "score": 0-10,
+      "feedback": "Were questions relevant to audience?",
+      "examples": ["quotes"]
+    }
+  },
+  "close_next_steps": {
+    "total_score": 0-10,
+    "summary": {
+      "score": 0-10,
+      "feedback": "Was there a recap of key points?",
+      "script_example": "To recap, [Guest] shared..."
+    },
+    "guest_promotion": {
+      "score": 0-10,
+      "feedback": "Did host promote guest's work?",
+      "examples": ["quotes or lack"],
+      "script_example": "For listeners who want to learn more..."
+    },
+    "call_to_action": {
+      "score": 0-10,
+      "feedback": "Clear CTA for audience?",
+      "script_example": "If you enjoyed this, please leave a review..."
+    },
+    "professional_closing": {
+      "score": 0-10,
+      "feedback": "Strong, memorable ending?",
+      "examples": ["closing quotes"],
+      "script_example": "improvement"
+    }
+  },
+  "overall_insights": {
+    "key_strengths": ["strength 1", "strength 2"],
+    "key_improvements": ["improvement 1", "improvement 2"],
+    "guest_fit_assessment": "Analysis of whether guest is good fit for discovery call",
+    "information_gaps": ["What information was NOT gathered that would be needed for next conversation"]
+  }
+}
 
-Respond with complete JSON matching the podcast analysis schema.`;
+CRITICAL INSTRUCTIONS:
+
+1. PROSPECT AGREEMENT (MOST IMPORTANT):
+   Look for explicit or implicit agreement to:
+   - Schedule a discovery call
+   - Have a follow-up meeting
+   - Continue the conversation
+   - Book a next call
+   - "Let's talk more about..."
+   - "I'd love to learn more..."
+   - "When can we schedule..."
+   - Any affirmative response to an invitation for next steps
+   
+   Set agreed_to_discovery to TRUE only if there is clear evidence the prospect wants to continue.
+   Set confidence based on how explicit the agreement was (explicit = high, implied = medium, unclear = low).
+
+2. QUALITY SCORING:
+   Score honestly based on the criteria. Low scores indicate gaps in information gathering.
+   If score is low (<35), note what information is missing in "information_gaps".
+
+Be specific, cite actual quotes from the transcript, and provide actionable feedback.`;
 
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
@@ -803,17 +930,181 @@ async function sendDiscoveryInvitation(discoveryCallId) {
 // HELPER FUNCTIONS: DISCOVERY ANALYSIS
 // ============================================
 async function analyzeDiscoveryTranscript(transcript) {
-  // Truncated for length - full tier-based analysis prompt here
-  const prompt = `Analyze this discovery call for tier-based recommendations (Strategic Foundations/Growth Architecture/Strategic Alliance). Respond with JSON including totalScore, organizationalMaturity, systemsSophistication, timeline, decisionAuthority, painSeverity, partnershipReadiness, and recommendation fields.
+  const prompt = `You are analyzing a discovery call transcript for Maggie Forbes Strategies, a B2B growth consultancy specializing in AI-powered systems deployment.
 
 TRANSCRIPT:
 ${transcript}
 
-Score 0-50 and recommend appropriate tier.`;
+SCORING RUBRIC (50 Points Total):
+
+1. ORGANIZATIONAL MATURITY & SCALE (15 points):
+   - 15 pts: $10M+ revenue, established operations, 50+ employees
+   - 10 pts: $5-10M revenue, scaling phase, 20-50 employees
+   - 5 pts: $3-5M revenue, early growth, under 20 employees
+   - 0 pts: Under $3M or unclear
+
+2. SYSTEMS SOPHISTICATION NEED (10 points):
+   - 10 pts: Needs comprehensive AI systems (intent, personalization, orchestration)
+   - 7 pts: Needs 3-5 systems deployed
+   - 4 pts: Needs 1-2 systems or foundational work
+   - 0 pts: No clear systems need
+
+3. TIMELINE/URGENCY (10 points):
+   - 10 pts: Ready to start within 1-2 weeks
+   - 7 pts: Within 1 month
+   - 4 pts: 1-3 months
+   - 0 pts: 3+ months or vague
+
+4. DECISION AUTHORITY (10 points):
+   - 10 pts: Owner/CEO/decision maker with budget authority
+   - 7 pts: VP/Director with decision power
+   - 4 pts: Manager who needs approval
+   - 0 pts: No authority or unclear
+
+5. PAIN SEVERITY & STRATEGIC CHALLENGES (10 points):
+   - 10 pts: Critical growth bottlenecks with quantified $ impact
+   - 7 pts: Clear strategic challenges, specific pain points
+   - 4 pts: Some challenges identified
+   - 0 pts: Vague or no specific pain
+
+6. PARTNERSHIP READINESS (5 points):
+   - 5 pts: Committed to systematic transformation, not quick fixes
+   - 3 pts: Open to partnership approach
+   - 0 pts: Looking for tactical help only
+
+PARTNERSHIP TIER RECOMMENDATIONS:
+
+**STRATEGIC FOUNDATIONS ($25K-75K, 90-day projects)**
+RECOMMEND IF:
+- Revenue $3M-10M, established but not yet scaled
+- Needs strategic clarity before implementation
+- Unclear on what systems they need
+- Wants roadmap and diagnostic work
+- Score typically: 20-35/50
+
+DELIVERS:
+- Complete systems audit & tech stack analysis
+- Data intelligence framework setup
+- Growth systems design blueprint
+- 12-month implementation roadmap
+- ROI modeling and success metrics
+
+**GROWTH ARCHITECTURE ($150K+ annual partnerships)**
+RECOMMEND IF:
+- Revenue $10M+, ready to scale systematically
+- Clear on problems, needs comprehensive implementation
+- Wants ongoing partnership with full AI systems deployment
+- Needs 5+ systems integrated over 6-12 months
+- Score typically: 35-45/50
+
+DELIVERS (Phase 1-3 over 12 months):
+PHASE 1 (Months 1-2):
+- Intent-based prospecting systems (6sense/ZoomInfo + Clay)
+- AI-powered personalization engine (Clay + OpenAI)
+- Interactive assessment tools (Typeform/Outgrow)
+- Multi-channel orchestration (Outreach/Instantly + LinkedIn)
+
+PHASE 2 (Months 3-6):
+- Agentic AI SDR (Outreach with Kaia + AI)
+- Content atomization engine (Descript + Castmagic)
+- Partnership program infrastructure (PartnerStack + Crossbeam)
+- Buyer enablement suite (Navattic + Dock)
+
+PHASE 3 (Months 6-12):
+- ABM orchestration for top accounts (Demandbase/Terminus)
+- AI video personalization (Synthesia/HeyGen)
+- Private executive community (Circle)
+
+**STRATEGIC ALLIANCE (Custom, by invitation only)**
+RECOMMEND IF:
+- Premium organization ($20M+ revenue)
+- Seeks permanent thinking partner, not vendor
+- Long-term strategic relationship desired
+- Executive-level partnership focus
+- Score typically: 45-50/50
+
+DELIVERS:
+- Everything in Architecture tier
+- Unlimited strategic counsel
+- Fractional growth executive role
+- Board-level strategic planning
+- Priority access and white-glove service
+
+AI SYSTEMS MENU (select specific ones they need):
+1. Intent-based prospecting systems (6sense/ZoomInfo + Clay)
+2. AI-powered personalization engine (Clay + OpenAI)
+3. Interactive assessment tools (Typeform/Outgrow)
+4. Multi-channel orchestration (Outreach/Instantly + LinkedIn)
+5. Agentic AI SDR (Outreach with Kaia)
+6. Content atomization engine (Descript + Castmagic)
+7. Partnership program infrastructure (PartnerStack + Crossbeam)
+8. Buyer enablement suite (Navattic + Dock + PandaDoc)
+9. ABM orchestration (Demandbase/Terminus)
+10. AI video personalization (Synthesia/HeyGen)
+11. Executive community platform (Circle)
+12. Data intelligence framework (Segment/RudderStack)
+
+Respond in this EXACT JSON format:
+{
+  "totalScore": [number 0-50],
+  "organizationalMaturity": {
+    "score": [number 0-15],
+    "evidence": "[quote or observation]",
+    "revenueRange": "[estimate if mentioned]",
+    "employeeCount": "[estimate if mentioned]"
+  },
+  "systemsSophistication": {
+    "score": [number 0-10],
+    "evidence": "[quote or observation]",
+    "currentSystems": ["system 1", "system 2"],
+    "gaps": ["gap 1", "gap 2"]
+  },
+  "timeline": {
+    "score": [number 0-10],
+    "evidence": "[quote or observation]",
+    "estimatedTimeline": "[1-2 weeks/1 month/1-3 months/3+ months]"
+  },
+  "decisionAuthority": {
+    "score": [number 0-10],
+    "evidence": "[quote or observation]",
+    "role": "[Owner/CEO/VP/Manager/Unclear]"
+  },
+  "painSeverity": {
+    "score": [number 0-10],
+    "evidence": "[quote or observation]",
+    "keyPainPoints": ["pain point 1", "pain point 2", "pain point 3"]
+  },
+  "partnershipReadiness": {
+    "score": [number 0-5],
+    "evidence": "[quote or observation]"
+  },
+  "recommendation": {
+    "status": "QUALIFIED|REVIEW|NURTURE",
+    "tier": "Strategic Foundations|Growth Architecture|Strategic Alliance",
+    "reasoning": "[2-3 sentence explanation of why this tier fits]",
+    "specificSystems": [
+      "Intent-based prospecting systems",
+      "AI-powered personalization engine",
+      "[other systems from menu above]"
+    ],
+    "estimatedValue": "$25K-75K|$150K-200K|$200K+|Custom",
+    "implementationTimeline": "90 days|6-12 months|Ongoing partnership"
+  },
+  "nextSteps": {
+    "autoAdvance": [true if score >= 35, false otherwise],
+    "action": "Create Strategy Call|Manual Review|Move to Nurture",
+    "notes": "[any important flags or considerations]"
+  },
+  "executiveSummary": "[3-4 sentence summary of the call, their challenges, and why this tier/systems package is right for them]",
+  "enthusiasmLevel": "high|medium|low",
+  "strategicFit": "excellent|good|moderate|poor"
+}
+
+Be precise. Score conservatively. Base everything on actual evidence from the transcript. Select specific systems from the menu based on their stated problems and gaps.`;
 
   const message = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 3000,
+    max_tokens: 4000,
     messages: [{ role: 'user', content: prompt }]
   });
 
