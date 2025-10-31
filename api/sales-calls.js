@@ -110,6 +110,7 @@ module.exports = async (req, res) => {
             if (updateError) throw updateError;
 
             // 🤖 AUTOMATION: If status changed to "won", auto-create pipeline entry
+  // 🤖 AUTOMATION: If status changed to "won", auto-create pipeline entry
             const statusChangedToWon = 
                 currentCall.call_status !== 'won' && 
                 updateData.call_status === 'won' &&
@@ -128,7 +129,6 @@ module.exports = async (req, res) => {
                     auto_created: true,
                     expected_close_date: updatedCall.scheduled_date,
                     sales_call_id: updatedCall.id,
-                    expected_close_date: updatedCall.call_date,
                     notes: `Auto-created from sales call on ${new Date().toISOString()}`
                 };
 
@@ -152,37 +152,65 @@ module.exports = async (req, res) => {
                         })
                         .eq('id', id);
                     
-                    // ⭐ CREATE DEAL RECORD
-        console.log('[Strategy Calls] 🤖 Creating deal record...');
-        const { data: dealRecord, error: dealError } = await supabase
-            .from('deals')
-            .insert([{
-                client_name: updatedCall.prospect_name,
-                company: updatedCall.company,
-                email: updatedCall.email,
-                contract_value: updatedCall.deal_value || 0,
-                status: 'pending',
-                payment_model: 'fixed',
-                source: 'strategy_call',
-                sales_call_id: updatedCall.id,
-                created_at: new Date().toISOString(),
-                notes: `Auto-created from strategy call on ${new Date().toISOString()}`
-            }])
-            .select()
-            .single();
+                    // CREATE DEAL RECORD
+                    console.log('[Strategy Calls] 🤖 Creating deal record...');
+                    const { data: dealRecord, error: dealError } = await supabase
+                        .from('deals')
+                        .insert([{
+                            client_name: updatedCall.prospect_name,
+                            company: updatedCall.company,
+                            email: updatedCall.email,
+                            contract_value: updatedCall.deal_value || 0,
+                            status: 'pending',
+                            payment_model: 'fixed',
+                            source: 'strategy_call',
+                            sales_call_id: updatedCall.id,
+                            created_at: new Date().toISOString(),
+                            notes: `Auto-created from strategy call on ${new Date().toISOString()}`
+                        }])
+                        .select()
+                        .single();
 
-        if (!dealError) {
-            console.log('[Strategy Calls] ✅ Deal created:', dealRecord.id);
-            
-            // Link deal back to strategy call
-            await supabase
-                .from('sales_calls')
-                .update({ deal_id: dealRecord.id })
-                .eq('id', updatedCall.id);
-        } else {
-            console.error('[Strategy Calls] ❌ Error creating deal:', dealError);
-        }                    
-                    // 📧 Send welcome email with weekly check-in link
+                    if (!dealError) {
+                        console.log('[Strategy Calls] ✅ Deal created:', dealRecord.id);
+                        
+                        // Link deal back to strategy call
+                        await supabase
+                            .from('sales_calls')
+                            .update({ deal_id: dealRecord.id })
+                            .eq('id', updatedCall.id);
+                    } else {
+                        console.error('[Strategy Calls] ❌ Error creating deal:', dealError);
+                    }
+
+                    // CREATE SPRINT TASK
+                    const { data: sprintTask, error: sprintError } = await supabase
+                        .from('sprints')
+                        .insert([{
+                            task_name: `🎉 New Client Onboarding: ${updatedCall.prospect_name}`,
+                            task_status: 'todo',
+                            priority: 'high',
+                            due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                            assigned_to: 'Maggie',
+                            notes: `Client: ${updatedCall.prospect_name} (${updatedCall.company})\nDeal Value: $${updatedCall.deal_value}\nWeekly check-in link: https://calendly.com/maggie-maggieforbesstrategies/weekly-check-in`
+                        }])
+                        .select()
+                        .single();
+
+                    if (!sprintError) {
+                        console.log('[Sales Calls] ✅ Sprint task created:', sprintTask.id);
+                    }
+
+                    // PREPARE WELCOME EMAIL
+                    console.log('[Sales Calls] 📧 Welcome email queued for:', updatedCall.email);
+                }
+            }
+
+            return res.status(200).json({
+                success: true,
+                data: updatedCall
+            });
+        }                    // 📧 Send welcome email with weekly check-in link
                 const emailBody = `Hi ${updatedCall.prospect_name},
 
 Welcome to the partnership! 🎉
@@ -198,8 +226,7 @@ Maggie Forbes
 Founder, Maggie Forbes Strategies
 AI Systems for Human-Led Growth`;
                 
-                console.log('[Sales Calls] 📧 TODO: 
-                            // Create sprint task for new client onboarding
+               
 // Create sprint task
 const { data: sprintTask, error: sprintError } = await supabase
     .from('sprints')
