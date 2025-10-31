@@ -21,15 +21,15 @@ module.exports = async (req, res) => {
     console.log('[Dashboard API] Loading unified dashboard data...');
 
     // ==================== FETCH ALL DATA IN PARALLEL ====================
-    // FIXED: Removed bad filters that were returning 0 results
+    // FIXED: Using correct column names that match actual Supabase schema
     const [sprintsResult, podcastResult, prequalResult, discoveryResult, strategyResult, pipelineResult, contactsResult] = await Promise.all([
       supabase.from('sprints').select('*').order('due_date', { ascending: true }),
-      supabase.from('podcast_interviews').select('*').order('call_date', { ascending: false }),
-      supabase.from('pre_qualification_calls').select('*').order('call_date', { ascending: false }),
-      supabase.from('discovery_calls').select('*').order('scheduled_date', { ascending: false }),
+      supabase.from('podcast_interviews').select('*').order('scheduled_date', { ascending: false }),
+      supabase.from('pre_qualification_calls').select('*').order('scheduled_date', { ascending: false }),
+      supabase.from('discovery_calls').select('*').order('call_date', { ascending: false }),  // FIXED: call_date not scheduled_date
       supabase.from('strategy_calls').select('*').order('scheduled_date', { ascending: false }),
-      supabase.from('pipeline').select('*').order('stage_order', { ascending: true }),
-      supabase.from('contacts').select('*')  // FIXED: Removed .eq('status', 'new') filter
+      supabase.from('pipeline').select('*').order('created_at', { ascending: false }),
+      supabase.from('contacts').select('*').order('created_at', { ascending: false })
     ]);
 
     const sprints = sprintsResult.data || [];
@@ -75,37 +75,42 @@ module.exports = async (req, res) => {
 
     // ==================== PODCAST + PREQUAL STATS ====================
     // Combine podcast interviews and pre-qualification calls
-    const allPodcastCalls = [...podcastCalls, ...prequalCalls];
+    // Note: pre_qualification_calls uses 'ai_score', podcast_interviews uses 'qualification_score'
+    const allPodcastCalls = [
+      ...podcastCalls.map(c => ({ ...c, score: c.qualification_score || 0 })),
+      ...prequalCalls.map(c => ({ ...c, score: c.ai_score || 0 }))
+    ];
+    
     const podcastCallsCount = allPodcastCalls.length;
-    const qualifiedCount = allPodcastCalls.filter(c => (c.qualification_score || 0) >= 35).length;
+    const qualifiedCount = allPodcastCalls.filter(c => (c.score) >= 35).length;
     const avgScore = allPodcastCalls.length > 0 
-      ? (allPodcastCalls.reduce((sum, c) => sum + (c.qualification_score || 0), 0) / allPodcastCalls.length).toFixed(1)
+      ? (allPodcastCalls.reduce((sum, c) => sum + (c.score), 0) / allPodcastCalls.length).toFixed(1)
       : '0.0';
     const qualificationRate = allPodcastCalls.length > 0 ? Math.round((qualifiedCount / allPodcastCalls.length) * 100) : 0;
 
     const recentPodcastCalls = allPodcastCalls.slice(0, 3).map(call => ({
       id: call.id,
-      prospect: call.prospect_name || call.guest_name || 'Unknown',
-      date: call.call_date || call.scheduled_date,
-      score: call.qualification_score || 0,
-      status: (call.qualification_score || 0) >= 35 ? 'qualified' : 'not-qualified'
+      prospect: call.guest_name || 'Unknown',  // FIXED: uses guest_name not prospect_name
+      date: call.scheduled_date || call.call_date,
+      score: call.score,
+      status: call.score >= 35 ? 'qualified' : 'not-qualified'
     }));
 
     // ==================== DISCOVERY STATS ====================
     const recentDiscoveryCalls = discoveryCalls.slice(0, 3).map(call => ({
       id: call.id,
-      prospect: call.prospect_name || call.guest_name || 'Unknown',
-      date: call.scheduled_date,
-      score: call.qualification_score || 0,
-      outcome: call.call_outcome || 'pending'
+      prospect: call.contact_name || call.guest_name || 'Unknown',  // FIXED: uses contact_name
+      date: call.call_date,  // FIXED: call_date not scheduled_date
+      score: call.ai_score || 0,
+      outcome: call.call_status || 'pending'
     }));
 
     // ==================== PIPELINE STAGES ====================
     const pipelineData = pipelineStages.length > 0 
       ? pipelineStages.map(stage => ({
-          name: stage.stage_name || 'Stage',
-          count: stage.prospect_count || 0,
-          prospects: [] // Can be expanded later with actual prospects
+          name: stage.deal_stage || stage.stage || 'Stage',
+          count: 1,
+          prospects: []
         }))
       : [
           { name: 'New Leads', count: newLeads.length, prospects: [] },
@@ -131,7 +136,7 @@ module.exports = async (req, res) => {
         qualifiedForDiscovery: qualifiedCount,
         newLeads: newLeads.length,
         strategyCalls: strategyCalls.length,
-        totalContacts: allContacts.length  // ADDED: Show total contacts
+        totalContacts: allContacts.length
       },
 
       // Sprint tasks section
@@ -160,7 +165,7 @@ module.exports = async (req, res) => {
         totalCalls: strategyCalls.length,
         recentCalls: strategyCalls.slice(0, 3).map(call => ({
           id: call.id,
-          prospect: call.prospect_name || call.guest_name || 'Unknown',
+          prospect: call.contact_name || call.guest_name || 'Unknown',
           date: call.scheduled_date,
           tier: call.recommended_tier || 'N/A'
         }))
@@ -173,7 +178,7 @@ module.exports = async (req, res) => {
 
       // Summary metrics
       summary: {
-        totalRevenue: 0, // Can be calculated from deals table
+        totalRevenue: 0,
         totalCalls: podcastCallsCount + discoveryCalls.length + strategyCalls.length,
         totalContacts: allContacts.length,
         qualificationRate,
@@ -185,7 +190,11 @@ module.exports = async (req, res) => {
     console.log('[Dashboard API] Summary:', {
       totalContacts: allContacts.length,
       newLeads: newLeads.length,
-      totalCalls: dashboardData.summary.totalCalls
+      totalCalls: dashboardData.summary.totalCalls,
+      prequalCalls: prequalCalls.length,
+      podcastCalls: podcastCalls.length,
+      discoveryCalls: discoveryCalls.length,
+      strategyCalls: strategyCalls.length
     });
 
     return res.status(200).json({
