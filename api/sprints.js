@@ -74,7 +74,7 @@ module.exports = async (req, res) => {
           }));
         }
 
-        // ✅ FIXED: Get strategy calls (not sales_calls)
+        // ✅ FIXED: Get strategy calls (not strategy_calls)
         const { data: strategyCalls } = await supabase
           .from('strategy_calls')
           .select('*')
