@@ -1,12 +1,10 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = async (req, res) => {
-  // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -23,36 +21,40 @@ module.exports = async (req, res) => {
         return res.status(400).json({ success: false, error: 'Client ID required' });
       }
 
-      // Fetch client
+      // ✅ FIXED: Use 'contacts' table (not prospects)
       const { data: client, error: clientError } = await supabase
-        .from('prospects')
+        .from('contacts')
         .select('*')
         .eq('id', clientId)
         .single();
 
-      if (clientError) throw new Error('Client not found');
+      if (clientError) {
+        console.error('Error fetching client:', clientError);
+        throw new Error('Client not found');
+      }
 
-      // Fetch calls
+      // Fetch discovery calls
       const { data: discoveryCalls } = await supabase
         .from('discovery_calls')
         .select('*')
-        .eq('prospect_id', clientId)
+        .eq('contact_id', clientId)
         .order('scheduled_date', { ascending: false });
 
+      // ✅ FIXED: Use 'strategy_calls' table (not sales_calls)
       const { data: strategyCalls } = await supabase
-        .from('sales_calls')
+        .from('strategy_calls')
         .select('*')
-        .eq('prospect_id', clientId)
+        .eq('contact_id', clientId)
         .order('scheduled_date', { ascending: false });
 
-      // ✅ FIXED: Fetch REAL messages
+      // ✅ Use existing 'messages' table
       const { data: messagesData } = await supabase
-        .from('client_messages')
+        .from('messages')
         .select('*')
-        .eq('client_id', clientId)
+        .eq('contact_id', clientId)
         .order('created_at', { ascending: false });
 
-      // Calculate metrics
+      // Calculate program metrics
       const programStartDate = client.program_start_date ? new Date(client.program_start_date) : null;
       const today = new Date();
       const daysInProgram = programStartDate ? Math.floor((today - programStartDate) / (1000 * 60 * 60 * 24)) : 0;
@@ -143,23 +145,23 @@ module.exports = async (req, res) => {
         }
       ];
 
-      // ✅ FIXED: Use REAL messages
+      // Use messages from database
       const messages = messagesData && messagesData.length > 0 
         ? messagesData.map(msg => ({
             id: msg.id,
-            from: msg.from_user || 'Maggie Forbes',
+            from: msg.author || 'Maggie Forbes',
             subject: msg.subject || 'Message',
             preview: msg.content ? msg.content.substring(0, 100) + '...' : '',
             content: msg.content,
             date: msg.created_at,
-            unread: msg.is_read === false
+            unread: !msg.is_read
           }))
         : [];
 
       const resources = [
         {
           id: 1,
-          title: 'Podcast Best Practices Guide',
+          title: 'Leadership Intelligence System Guide',
           type: 'PDF',
           url: '#',
           uploadedDate: new Date().toISOString()
@@ -203,7 +205,7 @@ module.exports = async (req, res) => {
     }
   }
 
-  // ✅ FIXED: POST - Save message to database
+  // POST - Save message
   if (req.method === 'POST') {
     try {
       const { clientId, message, subject } = req.body;
@@ -212,18 +214,19 @@ module.exports = async (req, res) => {
         return res.status(400).json({ success: false, error: 'Client ID and message required' });
       }
 
+      // ✅ FIXED: Get client from 'contacts' table
       const { data: client } = await supabase
-        .from('prospects')
+        .from('contacts')
         .select('name')
         .eq('id', clientId)
         .single();
 
+      // ✅ Save to existing 'messages' table
       const { data: savedMessage, error } = await supabase
-        .from('client_messages')
+        .from('messages')
         .insert([{
-          client_id: clientId,
-          from_user: client?.name || 'Client',
-          to_user: 'Maggie Forbes',
+          contact_id: clientId,
+          author: client?.name || 'Client',
           subject: subject || 'New Message',
           content: message,
           is_read: false,
