@@ -121,7 +121,7 @@ module.exports = async (req, res) => {
       }
 
       // Validate status
-      const validStatuses = ['active', 'paused', 'completed', 'cancelled'];
+      const validStatuses = ['pending', 'active', 'paused', 'completed', 'cancelled', 'rejected'];
       if (status && !validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
@@ -226,7 +226,7 @@ module.exports = async (req, res) => {
         updateData.payment_model = paymentModel;
       }
       if (status !== undefined) {
-        const validStatuses = ['active', 'paused', 'completed', 'cancelled'];
+        const validStatuses = ['pending', 'active', 'paused', 'completed', 'cancelled', 'rejected'];
         if (!validStatuses.includes(status)) {
           return res.status(400).json({
             success: false,
