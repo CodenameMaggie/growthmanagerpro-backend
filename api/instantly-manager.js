@@ -23,9 +23,9 @@ const SENDER_POOLS = {
       'm.forbes@brightmaggieforbesstrategies.com',
       'maggie@brightmaggieforbesstrategies.com'
     ],
-    podcast_campaign_id: process.env.INSTANTLY_PODCAST_POOL_A_CAMPAIGN_ID,
-    discovery_campaign_id: process.env.INSTANTLY_DISCOVERY_POOL_A_CAMPAIGN_ID,
-    proposal_campaign_id: process.env.INSTANTLY_PROPOSAL_POOL_A_CAMPAIGN_ID
+    podcast_campaign_id: process.env.INSTANTLY_PODCAST_CAMPAIGN_ID,
+    discovery_campaign_id: process.env.INSTANTLY_DISCOVERY_CAMPAIGN_ID,
+    strategy_campaign_id: process.env.INSTANTLY_STRATEGY_CAMPAIGN_ID
   },
   B: {
     senders: [
