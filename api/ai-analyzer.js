@@ -54,7 +54,7 @@ async function handleAnalyzePrequal(req, res) {
 
 CONTEXT:
 - This is a 15-minute screening call from cold email outreach
-- You're qualifying for The Leadership Intelligence System™ (B2B growth consulting)
+- You're qualifying for The Strategic Growth Architecture System™ (B2B growth consulting)
 - Target: $3M+ revenue contractors, service professionals, B2B companies
 - We use podcast interviews as the next qualification stage
 
