@@ -21,28 +21,41 @@ module.exports = async (req, res) => {
     console.log('[Dashboard API] Loading unified dashboard data...');
 
     // ==================== FETCH ALL DATA IN PARALLEL ====================
-    const [sprintsResult, podcastResult, discoveryResult, strategyResult, pipelineResult, contactsResult] = await Promise.all([
+    // FIXED: Removed bad filters that were returning 0 results
+    const [sprintsResult, podcastResult, prequalResult, discoveryResult, strategyResult, pipelineResult, contactsResult] = await Promise.all([
       supabase.from('sprints').select('*').order('due_date', { ascending: true }),
       supabase.from('podcast_interviews').select('*').order('call_date', { ascending: false }),
+      supabase.from('pre_qualification_calls').select('*').order('call_date', { ascending: false }),
       supabase.from('discovery_calls').select('*').order('scheduled_date', { ascending: false }),
       supabase.from('strategy_calls').select('*').order('scheduled_date', { ascending: false }),
       supabase.from('pipeline').select('*').order('stage_order', { ascending: true }),
-      supabase.from('contacts').select('*').eq('status', 'new')
+      supabase.from('contacts').select('*')  // FIXED: Removed .eq('status', 'new') filter
     ]);
 
     const sprints = sprintsResult.data || [];
     const podcastCalls = podcastResult.data || [];
+    const prequalCalls = prequalResult.data || [];
     const discoveryCalls = discoveryResult.data || [];
     const strategyCalls = strategyResult.data || [];
     const pipelineStages = pipelineResult.data || [];
-    const newLeads = contactsResult.data || [];
+    const allContacts = contactsResult.data || [];
+
+    // Calculate new leads (contacts added in last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const newLeads = allContacts.filter(c => {
+      if (!c.created_at) return false;
+      return new Date(c.created_at) > thirtyDaysAgo;
+    });
 
     console.log('[Dashboard API] Data counts:', {
       sprints: sprints.length,
       podcast: podcastCalls.length,
+      prequal: prequalCalls.length,
       discovery: discoveryCalls.length,
       strategy: strategyCalls.length,
       pipeline: pipelineStages.length,
+      totalContacts: allContacts.length,
       newLeads: newLeads.length
     });
 
@@ -60,18 +73,20 @@ module.exports = async (req, res) => {
       status: task.task_status || 'todo'
     }));
 
-    // ==================== PODCAST STATS ====================
-    const podcastCallsCount = podcastCalls.length;
-    const qualifiedCount = podcastCalls.filter(c => (c.qualification_score || 0) >= 35).length;
-    const avgScore = podcastCalls.length > 0 
-      ? (podcastCalls.reduce((sum, c) => sum + (c.qualification_score || 0), 0) / podcastCalls.length).toFixed(1)
+    // ==================== PODCAST + PREQUAL STATS ====================
+    // Combine podcast interviews and pre-qualification calls
+    const allPodcastCalls = [...podcastCalls, ...prequalCalls];
+    const podcastCallsCount = allPodcastCalls.length;
+    const qualifiedCount = allPodcastCalls.filter(c => (c.qualification_score || 0) >= 35).length;
+    const avgScore = allPodcastCalls.length > 0 
+      ? (allPodcastCalls.reduce((sum, c) => sum + (c.qualification_score || 0), 0) / allPodcastCalls.length).toFixed(1)
       : '0.0';
-    const qualificationRate = podcastCalls.length > 0 ? Math.round((qualifiedCount / podcastCalls.length) * 100) : 0;
+    const qualificationRate = allPodcastCalls.length > 0 ? Math.round((qualifiedCount / allPodcastCalls.length) * 100) : 0;
 
-    const recentPodcastCalls = podcastCalls.slice(0, 3).map(call => ({
+    const recentPodcastCalls = allPodcastCalls.slice(0, 3).map(call => ({
       id: call.id,
-      prospect: call.prospect_name || 'Unknown',
-      date: call.call_date,
+      prospect: call.prospect_name || call.guest_name || 'Unknown',
+      date: call.call_date || call.scheduled_date,
       score: call.qualification_score || 0,
       status: (call.qualification_score || 0) >= 35 ? 'qualified' : 'not-qualified'
     }));
@@ -79,7 +94,7 @@ module.exports = async (req, res) => {
     // ==================== DISCOVERY STATS ====================
     const recentDiscoveryCalls = discoveryCalls.slice(0, 3).map(call => ({
       id: call.id,
-      prospect: call.prospect_name || 'Unknown',
+      prospect: call.prospect_name || call.guest_name || 'Unknown',
       date: call.scheduled_date,
       score: call.qualification_score || 0,
       outcome: call.call_outcome || 'pending'
@@ -93,8 +108,9 @@ module.exports = async (req, res) => {
           prospects: [] // Can be expanded later with actual prospects
         }))
       : [
-          { name: 'Pre-Qualification', count: 0, prospects: [] },
-          { name: 'Podcast Scheduled', count: podcastCallsCount, prospects: [] },
+          { name: 'New Leads', count: newLeads.length, prospects: [] },
+          { name: 'Pre-Qualification', count: prequalCalls.length, prospects: [] },
+          { name: 'Podcast Scheduled', count: podcastCalls.length, prospects: [] },
           { name: 'Qualified for Discovery', count: qualifiedCount, prospects: [] },
           { name: 'Discovery Scheduled', count: discoveryCalls.length, prospects: [] },
           { name: 'Strategy Call', count: strategyCalls.length, prospects: [] },
@@ -114,7 +130,8 @@ module.exports = async (req, res) => {
         podcastCalls: podcastCallsCount,
         qualifiedForDiscovery: qualifiedCount,
         newLeads: newLeads.length,
-        strategyCalls: strategyCalls.length
+        strategyCalls: strategyCalls.length,
+        totalContacts: allContacts.length  // ADDED: Show total contacts
       },
 
       // Sprint tasks section
@@ -124,7 +141,7 @@ module.exports = async (req, res) => {
         completionRate: sprints.length > 0 ? Math.round((tasksFinished / sprints.length) * 100) : 0
       },
 
-      // Podcast section
+      // Podcast section (includes pre-qual calls)
       podcast: {
         totalCalls: podcastCallsCount,
         qualificationRate,
@@ -143,7 +160,7 @@ module.exports = async (req, res) => {
         totalCalls: strategyCalls.length,
         recentCalls: strategyCalls.slice(0, 3).map(call => ({
           id: call.id,
-          prospect: call.prospect_name || 'Unknown',
+          prospect: call.prospect_name || call.guest_name || 'Unknown',
           date: call.scheduled_date,
           tier: call.recommended_tier || 'N/A'
         }))
@@ -158,12 +175,18 @@ module.exports = async (req, res) => {
       summary: {
         totalRevenue: 0, // Can be calculated from deals table
         totalCalls: podcastCallsCount + discoveryCalls.length + strategyCalls.length,
+        totalContacts: allContacts.length,
         qualificationRate,
         pipelineMovement: qualifiedCount
       }
     };
 
     console.log('[Dashboard API] ✅ Response built successfully');
+    console.log('[Dashboard API] Summary:', {
+      totalContacts: allContacts.length,
+      newLeads: newLeads.length,
+      totalCalls: dashboardData.summary.totalCalls
+    });
 
     return res.status(200).json({
       success: true,
