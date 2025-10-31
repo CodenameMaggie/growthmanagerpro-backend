@@ -57,10 +57,10 @@ module.exports = async (req, res) => {
         });
       }
 
-      // Determine if this is a Discovery Call or Strategy/Sales Call
+      // Determine if this is a Discovery Call or Strategy/strategy Call
       const isDiscoveryCall = calendlyEventType.toLowerCase().includes('discovery');
-      const isSalesCall = calendlyEventType.toLowerCase().includes('strategy') || 
-                          calendlyEventType.toLowerCase().includes('sales');
+      const isstrategyCall = calendlyEventType.toLowerCase().includes('strategy') || 
+                          calendlyEventType.toLowerCase().includes('strategy');
 
       if (isDiscoveryCall) {
         // Update the most recent discovery call for this contact
@@ -89,31 +89,31 @@ module.exports = async (req, res) => {
             console.log('Discovery call updated with Calendly booking');
           }
         }
-      } else if (isSalesCall) {
-        // Update the most recent sales call for this contact
-        const { data: salesCall, error: salesError } = await supabase
-          .from('sales_calls')
+      } else if (isstrategyCall) {
+        // Update the most recent strategy call for this contact
+        const { data: strategyCall, error: strategyError } = await supabase
+          .from('strategy_calls')
           .select('*')
           .eq('contact_id', contact.id)
           .order('created_at', { ascending: false })
           .limit(1)
           .single();
 
-        if (salesCall) {
+        if (strategyCall) {
           const { error: updateError } = await supabase
-            .from('sales_calls')
+            .from('strategy_calls')
             .update({
               call_date: eventStartTime,
               calendly_link: meetingUri,
               status: 'Scheduled',
               updated_at: new Date().toISOString()
             })
-            .eq('id', salesCall.id);
+            .eq('id', strategyCall.id);
 
           if (updateError) {
-            console.error('Error updating sales call:', updateError);
+            console.error('Error updating strategy call:', updateError);
           } else {
-            console.log('Sales call updated with Calendly booking');
+            console.log('strategy call updated with Calendly booking');
           }
         }
       }
@@ -121,7 +121,7 @@ module.exports = async (req, res) => {
       return res.status(200).json({ 
         received: true,
         contact_found: true,
-        call_type: isDiscoveryCall ? 'discovery' : isSalesCall ? 'sales' : 'unknown',
+        call_type: isDiscoveryCall ? 'discovery' : isstrategyCall ? 'strategy' : 'unknown',
         message: 'Calendly booking processed successfully'
       });
 
@@ -150,9 +150,9 @@ module.exports = async (req, res) => {
           .eq('contact_id', contact.id)
           .eq('calendly_link', canceledUri);
 
-        // Update sales calls with this Calendly link
+        // Update strategy calls with this Calendly link
         await supabase
-          .from('sales_calls')
+          .from('strategy_calls')
           .update({
             status: 'Canceled',
             updated_at: new Date().toISOString()
