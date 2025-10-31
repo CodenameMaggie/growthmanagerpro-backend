@@ -396,7 +396,7 @@ async function handleSendDiscovery(req, res) {
     
     const emailBody = `Hi ${firstName},
 
-Thanks for our great podcast conversation! I'd love to continue our discussion and explore how The Leadership Intelligence System™ could help ${company} achieve your growth goals.
+Thanks for our great podcast conversation! I'd love to continue our discussion and explore how The Strategic Growth Architecture Systme™ could help ${company} achieve your growth goals.
 
 Schedule a discovery call:
 https://calendly.com/maggie-maggieforbesstrategies/discovery-call
@@ -405,7 +405,7 @@ Looking forward to it!
 
 Maggie Forbes
 Founder, Maggie Forbes Strategies
-AI Systems for Human-Led Growth`;
+Strategic Growth Architecture System`;
 
     // SEND VIA INSTANTLY
     const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/lead/add', {
@@ -614,7 +614,7 @@ Best regards,
 
 Maggie Forbes
 Founder, Maggie Forbes Strategies
-AI Systems for Human-Led Growth
+Strategic Growth Architecture System
 
 🌐 www.maggieforbesstrategies.com`;
 
@@ -795,7 +795,7 @@ Looking forward to showing you what's possible!
 
 Maggie Forbes
 Founder, Maggie Forbes Strategies
-AI Systems for Human-Led Growth`;
+Strategic Growth Architecture System`;
 
     // SEND VIA INSTANTLY
     const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/lead/add', {
