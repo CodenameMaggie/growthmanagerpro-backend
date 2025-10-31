@@ -14,10 +14,10 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // GET - Fetch all sales calls with stats
+        // GET - Fetch all strategy calls with stats
         if (req.method === 'GET') {
             const { data: calls, error } = await supabase
-                .from('sales_calls')
+                .from('strategy_calls')
                 .select('*')
                 .order('scheduled_date', { ascending: false });
 
@@ -61,13 +61,13 @@ module.exports = async (req, res) => {
             });
         }
 
-        // POST - Create new sales call
+        // POST - Create new strategy call
         if (req.method === 'POST') {
-            const salesCallData = req.body;
+            const strategyCallData = req.body;
 
             const { data: newCall, error } = await supabase
-                .from('sales_calls')
-                .insert([salesCallData])
+                .from('strategy_calls')
+                .insert([strategyCallData])
                 .select()
                 .single();
 
@@ -79,29 +79,29 @@ module.exports = async (req, res) => {
             });
         }
 
-        // PUT - Update sales call
+        // PUT - Update strategy call
         if (req.method === 'PUT') {
             const { id, ...updateData } = req.body;
 
             if (!id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Sales call ID is required'
+                    error: 'Strategy call ID is required'
                 });
             }
 
-            // Get the current sales call data
+            // Get the current strategy call data
             const { data: currentCall, error: fetchError } = await supabase
-                .from('sales_calls')
+                .from('strategy_calls')
                 .select('*')
                 .eq('id', id)
                 .single();
 
             if (fetchError) throw fetchError;
 
-            // Update the sales call
+            // Update the strategy call
             const { data: updatedCall, error: updateError } = await supabase
-                .from('sales_calls')
+                .from('strategy_calls')
                 .update(updateData)
                 .eq('id', id)
                 .select()
@@ -117,7 +117,7 @@ module.exports = async (req, res) => {
                 !currentCall.pipeline_created;
 
             if (statusChangedToWon) {
-                console.log('[Sales Calls] 🤖 Auto-creating pipeline entry for won deal:', id);
+                console.log('[Strategy Calls] 🤖 Auto-creating pipeline entry for won deal:', id);
 
                 // Create pipeline entry
                 const pipelineData = {
@@ -128,8 +128,8 @@ module.exports = async (req, res) => {
                     status: 'won',
                     auto_created: true,
                     expected_close_date: updatedCall.scheduled_date,
-                    sales_call_id: updatedCall.id,
-                    notes: `Auto-created from sales call on ${new Date().toISOString()}`
+                    strategy_call_id: updatedCall.id,
+                    notes: `Auto-created from strategy call on ${new Date().toISOString()}`
                 };
 
                 const { data: pipelineEntry, error: pipelineError } = await supabase
@@ -139,13 +139,13 @@ module.exports = async (req, res) => {
                     .single();
 
                 if (pipelineError) {
-                    console.error('[Sales Calls] ❌ Error creating pipeline entry:', pipelineError);
+                    console.error('[Strategy Calls] ❌ Error creating pipeline entry:', pipelineError);
                 } else {
-                    console.log('[Sales Calls] ✅ Pipeline entry created:', pipelineEntry.id);
+                    console.log('[Strategy Calls] ✅ Pipeline entry created:', pipelineEntry.id);
 
-                    // Mark sales call as having created pipeline entry
+                    // Mark strategy call as having created pipeline entry
                     await supabase
-                        .from('sales_calls')
+                        .from('strategy_calls')
                         .update({ 
                             pipeline_created: true,
                             pipeline_id: pipelineEntry.id 
@@ -164,7 +164,7 @@ module.exports = async (req, res) => {
                             status: 'pending',
                             payment_model: 'fixed',
                             source: 'strategy_call',
-                            sales_call_id: updatedCall.id,
+                            strategy_call_id: updatedCall.id,
                             created_at: new Date().toISOString(),
                             notes: `Auto-created from strategy call on ${new Date().toISOString()}`
                         }])
@@ -176,7 +176,7 @@ module.exports = async (req, res) => {
                         
                         // Link deal back to strategy call
                         await supabase
-                            .from('sales_calls')
+                            .from('strategy_calls')
                             .update({ deal_id: dealRecord.id })
                             .eq('id', updatedCall.id);
                     } else {
@@ -198,11 +198,11 @@ module.exports = async (req, res) => {
                         .single();
 
                     if (!sprintError) {
-                        console.log('[Sales Calls] ✅ Sprint task created:', sprintTask.id);
+                        console.log('[strategy Calls] ✅ Sprint task created:', sprintTask.id);
                     }
 
                     // PREPARE WELCOME EMAIL
-                    console.log('[Sales Calls] 📧 Welcome email queued for:', updatedCall.email);
+                    console.log('[strategy Calls] 📧 Welcome email queued for:', updatedCall.email);
                 }
             }
 
@@ -214,19 +214,19 @@ module.exports = async (req, res) => {
 
         }
 
-        // DELETE - Delete sales call
+        // DELETE - Delete strategy call
         if (req.method === 'DELETE') {
             const { id } = req.body;
 
             if (!id) {
                 return res.status(400).json({
                     success: false,
-                    error: 'Sales call ID is required'
+                    error: 'strategy call ID is required'
                 });
             }
 
             const { error } = await supabase
-                .from('sales_calls')
+                .from('strategy_calls')
                 .delete()
                 .eq('id', id);
 
@@ -234,7 +234,7 @@ module.exports = async (req, res) => {
 
             return res.status(200).json({
                 success: true,
-                message: 'Sales call deleted successfully'
+                message: 'strategy call deleted successfully'
             });
         }
 
@@ -244,7 +244,7 @@ module.exports = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('[Sales Calls] Error:', error);
+        console.error('[strategy Calls] Error:', error);
         return res.status(500).json({
             success: false,
             error: error.message
