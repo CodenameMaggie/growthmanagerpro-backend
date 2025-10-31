@@ -152,6 +152,36 @@ module.exports = async (req, res) => {
                         })
                         .eq('id', id);
                     
+                    // ⭐ CREATE DEAL RECORD
+        console.log('[Strategy Calls] 🤖 Creating deal record...');
+        const { data: dealRecord, error: dealError } = await supabase
+            .from('deals')
+            .insert([{
+                client_name: updatedCall.prospect_name,
+                company: updatedCall.company,
+                email: updatedCall.email,
+                contract_value: updatedCall.deal_value || 0,
+                status: 'pending',
+                payment_model: 'fixed',
+                source: 'strategy_call',
+                sales_call_id: updatedCall.id,
+                created_at: new Date().toISOString(),
+                notes: `Auto-created from strategy call on ${new Date().toISOString()}`
+            }])
+            .select()
+            .single();
+
+        if (!dealError) {
+            console.log('[Strategy Calls] ✅ Deal created:', dealRecord.id);
+            
+            // Link deal back to strategy call
+            await supabase
+                .from('sales_calls')
+                .update({ deal_id: dealRecord.id })
+                .eq('id', updatedCall.id);
+        } else {
+            console.error('[Strategy Calls] ❌ Error creating deal:', dealError);
+        }                    
                     // 📧 Send welcome email with weekly check-in link
                 const emailBody = `Hi ${updatedCall.prospect_name},
 
