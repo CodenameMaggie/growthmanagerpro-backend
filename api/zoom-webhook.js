@@ -1,23 +1,24 @@
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const zoomClientId = process.env.ZOOM_CLIENT_ID;
 const zoomClientSecret = process.env.ZOOM_CLIENT_SECRET;
 const zoomAccountId = process.env.ZOOM_ACCOUNT_ID;
+const zoomWebhookSecret = process.env.ZOOM_WEBHOOK_SECRET;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
- * Zoom Webhook Handler - WITH AUTOMATIC AI ANALYSIS FOR ALL CALL TYPES
- * Handles: Podcast, Discovery, Strategy, and Pre-Qualification Calls
- * Auto-triggers AI analysis after transcription
+ * Zoom Webhook Handler - WITH VALIDATION SUPPORT
+ * Handles: Webhook validation + Recording processing + AI analysis
  */
 module.exports = async (req, res) => {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -30,7 +31,38 @@ module.exports = async (req, res) => {
   try {
     const { event, payload } = req.body;
 
-    // Handle recording completed event
+    console.log('[Zoom Webhook] Received event:', event);
+
+    // ============================================
+    // HANDLE ZOOM VALIDATION CHALLENGE
+    // ============================================
+    if (event === 'endpoint.url_validation') {
+      const plainToken = payload.plainToken;
+      
+      console.log('[Zoom Webhook] Validation request received');
+      
+      if (!zoomWebhookSecret) {
+        console.error('[Zoom Webhook] ZOOM_WEBHOOK_SECRET not configured!');
+        return res.status(500).json({ error: 'Webhook secret not configured' });
+      }
+      
+      // Create encrypted token: HMAC-SHA256(plainToken, webhookSecret)
+      const encryptedToken = crypto
+        .createHmac('sha256', zoomWebhookSecret)
+        .update(plainToken)
+        .digest('hex');
+      
+      console.log('[Zoom Webhook] ✅ Validation response sent');
+      
+      return res.status(200).json({
+        plainToken: plainToken,
+        encryptedToken: encryptedToken
+      });
+    }
+
+    // ============================================
+    // HANDLE RECORDING COMPLETED EVENT
+    // ============================================
     if (event === 'recording.completed') {
       const meetingId = payload.object.id;
       const topic = payload.object.topic;
@@ -99,7 +131,8 @@ module.exports = async (req, res) => {
     }
 
     // Handle other events
-    return res.status(200).json({ message: 'Event received but not processed' });
+    console.log('[Zoom Webhook] Event received but not processed:', event);
+    return res.status(200).json({ message: 'Event received' });
 
   } catch (error) {
     console.error('[Zoom Webhook] Error:', error);
@@ -259,14 +292,14 @@ async function updateCallRecord(callType, meetingId, topic, recordingUrl, transc
       tableName = 'pre_qualification_calls';
       break;
     case 'podcast':
-      tableName = 'podcast_interviews';  // Note: uses podcast_interviews table
-      updates.transcript_text = transcript;  // podcast uses transcript_text field
+      tableName = 'podcast_interviews';
+      updates.transcript_text = transcript;
       break;
     case 'discovery':
       tableName = 'discovery_calls';
       break;
     case 'strategy':
-      tableName = 'sales_calls';  // Note: strategy calls use sales_calls table
+      tableName = 'sales_calls';
       break;
     default:
       throw new Error(`Unknown call type: ${callType}`);
@@ -311,7 +344,6 @@ async function triggerPreQualAnalysis(meetingId) {
   try {
     console.log('[Zoom Webhook] Triggering pre-qual AI analysis...');
 
-    // Get the pre-qual call record
     const { data: call, error } = await supabase
       .from('pre_qualification_calls')
       .select('*')
@@ -323,10 +355,7 @@ async function triggerPreQualAnalysis(meetingId) {
       return;
     }
 
-    // Call the AI analyzer
-    const analysisUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}/api/ai-analyzer`
-      : 'http://localhost:3000/api/ai-analyzer';
+    const analysisUrl = `https://growthmanagerpro-backend.vercel.app/api/ai-analyzer`;
     
     const response = await fetch(analysisUrl, {
       method: 'POST',
@@ -352,13 +381,12 @@ async function triggerPreQualAnalysis(meetingId) {
 }
 
 /**
- * ⚡ NEW: Trigger AI analysis for podcast interviews
+ * Trigger AI analysis for podcast interviews
  */
 async function triggerPodcastAnalysis(meetingId) {
   try {
     console.log('[Zoom Webhook] Triggering podcast AI analysis...');
 
-    // Get the podcast interview record
     const { data: interview, error } = await supabase
       .from('podcast_interviews')
       .select('*')
@@ -375,10 +403,7 @@ async function triggerPodcastAnalysis(meetingId) {
       return;
     }
 
-    // Call the AI analyzer
-    const analysisUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}/api/ai-analyzer`
-      : 'http://localhost:3000/api/ai-analyzer';
+    const analysisUrl = `https://growthmanagerpro-backend.vercel.app/api/ai-analyzer`;
     
     const response = await fetch(analysisUrl, {
       method: 'POST',
@@ -406,13 +431,12 @@ async function triggerPodcastAnalysis(meetingId) {
 }
 
 /**
- * ⚡ NEW: Trigger AI analysis for discovery calls
+ * Trigger AI analysis for discovery calls
  */
 async function triggerDiscoveryAnalysis(meetingId) {
   try {
     console.log('[Zoom Webhook] Triggering discovery AI analysis...');
 
-    // Get the discovery call record
     const { data: discoveryCall, error } = await supabase
       .from('discovery_calls')
       .select('*')
@@ -429,10 +453,7 @@ async function triggerDiscoveryAnalysis(meetingId) {
       return;
     }
 
-    // Call the AI analyzer
-    const analysisUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}/api/ai-analyzer`
-      : 'http://localhost:3000/api/ai-analyzer';
+    const analysisUrl = `https://growthmanagerpro-backend.vercel.app/api/ai-analyzer`;
     
     const response = await fetch(analysisUrl, {
       method: 'POST',
@@ -460,13 +481,12 @@ async function triggerDiscoveryAnalysis(meetingId) {
 }
 
 /**
- * ⚡ NEW: Trigger AI analysis for strategy/sales calls
+ * Trigger AI analysis for strategy/sales calls
  */
 async function triggerStrategyAnalysis(meetingId) {
   try {
     console.log('[Zoom Webhook] Triggering strategy AI analysis...');
 
-    // Get the sales call record
     const { data: salesCall, error } = await supabase
       .from('sales_calls')
       .select('*')
@@ -483,10 +503,7 @@ async function triggerStrategyAnalysis(meetingId) {
       return;
     }
 
-    // Call the AI analyzer
-    const analysisUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}/api/ai-analyzer`
-      : 'http://localhost:3000/api/ai-analyzer';
+    const analysisUrl = `https://growthmanagerpro-backend.vercel.app/api/ai-analyzer`;
     
     const response = await fetch(analysisUrl, {
       method: 'POST',
