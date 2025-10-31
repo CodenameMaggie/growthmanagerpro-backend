@@ -50,7 +50,7 @@ async function handleAnalyzePrequal(req, res) {
     const transcript = prequalCall.transcript;
 
     // AI Analysis Prompt
-    const analysisPrompt = `You are analyzing a pre-qualification sales call to determine if this prospect should be invited to a podcast interview.
+    const analysisPrompt = `You are analyzing a pre-qualification strategy call to determine if this prospect should be invited to a podcast interview.
 
 CONTEXT:
 - This is a 15-minute screening call from cold email outreach
@@ -397,15 +397,15 @@ async function handleAnalyzeDiscovery(req, res) {
       console.error('[Discovery Analysis] Error updating:', updateError);
     }
 
-    let salesCall = null;
+    let strategyCall = null;
     let emailSent = false;
 
     // Auto-advance if score >= 35
     if (shouldAutoAdvance && discoveryCall.contacts) {
       console.log('[Discovery Analysis] 🎯 QUALIFIED - Creating strategy call');
 
-      const { data: newSalesCall, error: salesError } = await supabase
-        .from('sales_calls')
+      const { data: newstrategyCall, error: strategyError } = await supabase
+        .from('strategy_calls')
         .insert([{
           contact_id: discoveryCall.contacts.id,
           discovery_call_id: discovery_call_id,
@@ -422,17 +422,17 @@ async function handleAnalyzeDiscovery(req, res) {
         .select()
         .single();
 
-      if (salesError) {
-        console.error('[Discovery Analysis] Error creating strategy call:', salesError);
+      if (strategyError) {
+        console.error('[Discovery Analysis] Error creating strategy call:', strategyError);
       } else {
-        salesCall = newSalesCall;
-        console.log('[Discovery Analysis] ✅ Strategy call created:', salesCall.id);
+        strategyCall = newstrategyCall;
+        console.log('[Discovery Analysis] ✅ Strategy call created:', strategyCall.id);
 
         // Update contact stage
         await supabase
           .from('contacts')
           .update({ 
-            stage: 'sales',
+            stage: 'strategy',
             recommended_tier: analysis.recommendation.tier,
             updated_at: new Date().toISOString()
           })
@@ -449,7 +449,7 @@ async function handleAnalyzeDiscovery(req, res) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
               action: 'send-strategy',
-              sales_call_id: salesCall.id,
+              strategy_call_id: strategyCall.id,
               contact_name: contactName,
               company: company,
               recommended_tier: analysis.recommendation.tier,
@@ -495,8 +495,8 @@ async function handleAnalyzeDiscovery(req, res) {
         recommendedTier: analysis.recommendation.tier,
         recommendedSystems: analysis.recommendation.specificSystems,
         estimatedValue: analysis.recommendation.estimatedValue,
-        salesCallCreated: !!salesCall,
-        salesCallId: salesCall?.id,
+        strategyCallCreated: !!strategyCall,
+        strategyCallId: strategyCall?.id,
         emailSent,
         message: shouldAutoAdvance 
           ? `🎯 QUALIFIED (${analysis.totalScore}/50) - ${analysis.recommendation.tier}, Strategy Call created!`
@@ -516,42 +516,42 @@ async function handleAnalyzeDiscovery(req, res) {
 }
 
 // ============================================
-// HANDLER: ANALYZE SALES CALL
+// HANDLER: ANALYZE STRATEGY CALL
 // ============================================
-async function handleAnalyzeSales(req, res) {
+async function handleAnalyzestrategy(req, res) {
   try {
-    const { sales_call_id, transcript } = req.body;
+    const { strategy_call_id, transcript } = req.body;
 
-    if (!sales_call_id || !transcript) {
+    if (!strategy_call_id || !transcript) {
       return res.status(400).json({ 
         success: false,
-        error: 'sales_call_id and transcript are required' 
+        error: 'strategy_call_id and transcript are required' 
       });
     }
 
-    console.log('[Sales Analysis] Analyzing call:', sales_call_id);
+    console.log('[strategy Analysis] Analyzing call:', strategy_call_id);
 
-    // Get sales call record
-    const { data: salesCall, error: salesError } = await supabase
-      .from('sales_calls')
+    // Get strategy call record
+    const { data: strategyCall, error: strategyError } = await supabase
+      .from('strategy_calls')
       .select('*, contacts(*), discovery_calls(*)')
-      .eq('id', sales_call_id)
+      .eq('id', strategy_call_id)
       .single();
 
-    if (salesError || !salesCall) {
+    if (strategyError || !strategyCall) {
       return res.status(404).json({ 
         success: false,
-        error: 'Sales call not found' 
+        error: 'strategy call not found' 
       });
     }
 
     // Analyze transcript
-    const analysisPrompt = `You are analyzing a sales/strategy call transcript to determine if the prospect agreed to purchase The Leadership Intelligence System™.
+    const analysisPrompt = `You are analyzing a strategy/strategy call transcript to determine if the prospect agreed to purchase The Leadership Intelligence System™.
 
 TRANSCRIPT:
 ${transcript}
 
-Analyze this sales call and respond with a JSON object:
+Analyze this strategy call and respond with a JSON object:
 {
   "agreed_to_deal": true/false,
   "deal_value": number (in USD, or null if not discussed),
@@ -586,11 +586,11 @@ Focus on whether they explicitly or implicitly agreed to move forward with The L
     }
 
     const analysis = JSON.parse(jsonMatch[0]);
-    console.log('[Sales Analysis] Result:', analysis.agreed_to_deal ? 'DEAL CLOSED' : 'No deal');
+    console.log('[strategy Analysis] Result:', analysis.agreed_to_deal ? 'DEAL CLOSED' : 'No deal');
 
-    // Update sales call
+    // Update strategy call
     const { error: updateError } = await supabase
-      .from('sales_calls')
+      .from('strategy_calls')
       .update({
         transcript: transcript,
         key_commitments: analysis.key_commitments,
@@ -603,10 +603,10 @@ Focus on whether they explicitly or implicitly agreed to move forward with The L
         status: analysis.agreed_to_deal ? 'Won' : 'Completed',
         updated_at: new Date().toISOString()
       })
-      .eq('id', sales_call_id);
+      .eq('id', strategy_call_id);
 
     if (updateError) {
-      console.error('[Sales Analysis] Error updating:', updateError);
+      console.error('[strategy Analysis] Error updating:', updateError);
       throw updateError;
     }
 
@@ -614,16 +614,16 @@ Focus on whether they explicitly or implicitly agreed to move forward with The L
 
     // Create deal if agreed
     if (analysis.agreed_to_deal) {
-      console.log('[Sales Analysis] 🎉 DEAL CLOSED! Creating deal record...');
+      console.log('[strategy Analysis] 🎉 DEAL CLOSED! Creating deal record...');
 
       const dealValue = analysis.deal_value || 15000;
 
       const { data: newDeal, error: dealError } = await supabase
         .from('deals')
         .insert({
-          contact_id: salesCall.contact_id,
-          sales_call_id: sales_call_id,
-          deal_name: `${salesCall.contacts.company || salesCall.contacts.name} - Leadership Intelligence System™`,
+          contact_id: strategyCall.contact_id,
+          strategy_call_id: strategy_call_id,
+          deal_name: `${strategyCall.contacts.company || strategyCall.contacts.name} - Leadership Intelligence System™`,
           deal_value: dealValue,
           payment_terms: analysis.payment_terms || 'Not discussed',
           start_date: analysis.start_date,
@@ -638,10 +638,10 @@ Focus on whether they explicitly or implicitly agreed to move forward with The L
         .single();
 
       if (dealError) {
-        console.error('[Sales Analysis] Error creating deal:', dealError);
+        console.error('[strategy Analysis] Error creating deal:', dealError);
       } else {
         deal = newDeal;
-        console.log('[Sales Analysis] ✅ Deal created:', deal.id);
+        console.log('[strategy Analysis] ✅ Deal created:', deal.id);
 
         // Update contact to Client
         await supabase
@@ -650,27 +650,27 @@ Focus on whether they explicitly or implicitly agreed to move forward with The L
             stage: 'Client',
             updated_at: new Date().toISOString()
           })
-          .eq('id', salesCall.contact_id);
+          .eq('id', strategyCall.contact_id);
 
-        console.log('[Sales Analysis] Contact updated to Client');
+        console.log('[strategy Analysis] Contact updated to Client');
       }
     }
 
     return res.status(200).json({
       success: true,
-      sales_call_id,
+      strategy_call_id,
       agreed_to_deal: analysis.agreed_to_deal,
       analysis,
       deal_created: !!deal,
       deal_id: deal?.id,
       deal_value: deal?.deal_value,
       message: analysis.agreed_to_deal 
-        ? `🎉 Deal closed! ${salesCall.contacts.name} is now a client. Value: $${deal?.deal_value}` 
-        : 'Sales call analyzed: Prospect did not agree to deal.'
+        ? `🎉 Deal closed! ${strategyCall.contacts.name} is now a client. Value: $${deal?.deal_value}` 
+        : 'strategy call analyzed: Prospect did not agree to deal.'
     });
 
   } catch (error) {
-    console.error('[Sales Analysis] Error:', error);
+    console.error('[strategy Analysis] Error:', error);
     return res.status(500).json({ 
       success: false,
       error: 'Internal server error', 
@@ -1134,7 +1134,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({ 
       status: 'ok', 
       message: 'AI Analyzer endpoint is running',
-      actions: ['analyze-prequal', 'analyze-podcast', 'analyze-discovery', 'analyze-sales'],
+      actions: ['analyze-prequal', 'analyze-podcast', 'analyze-discovery', 'analyze-strategy'],
       timestamp: new Date().toISOString()
     });
   }
@@ -1153,14 +1153,14 @@ module.exports = async (req, res) => {
       case 'analyze-discovery':
         return handleAnalyzeDiscovery(req, res);
       
-      case 'analyze-sales':
-        return handleAnalyzeSales(req, res);
+      case 'analyze-strategy':
+        return handleAnalyzestrategy(req, res);
       
       default:
         return res.status(400).json({
           success: false,
           error: 'Invalid action',
-          message: 'Action must be one of: analyze-prequal, analyze-podcast, analyze-discovery, analyze-sales'
+          message: 'Action must be one of: analyze-prequal, analyze-podcast, analyze-discovery, analyze-strategy'
         });
     }
   }
