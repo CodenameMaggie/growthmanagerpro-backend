@@ -209,82 +209,8 @@ module.exports = async (req, res) => {
             return res.status(200).json({
                 success: true,
                 data: updatedCall
-            });
-        }                    // 📧 Send welcome email with weekly check-in link
-                const emailBody = `Hi ${updatedCall.prospect_name},
-
-Welcome to the partnership! 🎉
-
-Excited to officially begin working together on your growth transformation!
-
-Let's schedule your weekly check-in calls:
-https://calendly.com/maggie-maggieforbesstrategies/weekly-check-in
-
-Looking forward to building something great together!
-
-Maggie Forbes
-Founder, Maggie Forbes Strategies
-AI Systems for Human-Led Growth`;
                 
-               
-// Create sprint task
-const { data: sprintTask, error: sprintError } = await supabase
-    .from('sprints')
-    .insert([{
-        task_name: '🎉 New Client Onboarding: ${updatedCall.prospect_name}',
-        task_status: 'todo',
-        priority: 'high',
-        due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        assigned_to: 'Maggie',
-        notes: `Client: ${updatedCall.prospect_name}...`
-    }])
-    .select()
-    .single();
-
-if (!sprintError) {
-    console.log('[Sales Calls] ✅ Sprint task created:', sprintTask.id);
-}
-
-// THEN send email (separate block)
-try {
-    const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/email/send', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.INSTANTLY_API_KEY}`
-        },
-        body: JSON.stringify({
-            to: updatedCall.email,
-            subject: 'Welcome to the Partnership! 🎉',
-            body: emailBody,
-            from_email: 'maggie@maggieforbesstrategies.com'
-        })
-    });
-    
-    if (instantlyResponse.ok) {
-        console.log('[Sales Calls] ✅ Welcome email sent');
-    }
-} catch (emailError) {
-    console.error('[Sales Calls] ❌ Email error:', emailError);
-}
-        priority: 'high',
-        due_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
-        assigned_to: 'Maggie',
-        notes: `Client: ${updatedCall.prospect_name} (${updatedCall.company})\nDeal Value: $${updatedCall.deal_value}\nWeekly check-in link sent: https://calendly.com/maggie-maggieforbesstrategies/weekly-check-in`
-    }])
-            
-    .select()
-    .single();
-
-if (!sprintError) {
-    console.log('[Sales Calls] ✅ Sprint task created:', sprintTask.id);
-}
-            }
-            return res.status(200).json({
-                success: true,
-                data: updatedCall
-            });
-        }
+            } 
 
         // DELETE - Delete sales call
         if (req.method === 'DELETE') {
