@@ -1,297 +1,96 @@
 const crypto = require('crypto');
 
 /**
- * MINIMAL Zoom Webhook - FAST VALIDATION PRIORITY
- * Handles validation FIRST before any heavy operations
+ * ULTRA-MINIMAL ZOOM WEBHOOK - DIAGNOSTIC VERSION
+ * This will log everything to help us see why validation is failing
  */
 module.exports = async (req, res) => {
+  // Log EVERYTHING
+  console.log('=== ZOOM WEBHOOK CALLED ===');
+  console.log('Method:', req.method);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+  console.log('Env vars exist:', {
+    ZOOM_WEBHOOK_SECRET: !!process.env.ZOOM_WEBHOOK_SECRET,
+    secretLength: process.env.ZOOM_WEBHOOK_SECRET ? process.env.ZOOM_WEBHOOK_SECRET.length : 0
+  });
+
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
+    console.log('OPTIONS request - returning 200');
     return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
+    console.log('Not POST - returning 405');
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  try {
-    const { event, payload } = req.body;
+  // Check if body exists
+  if (!req.body) {
+    console.log('ERROR: No request body');
+    return res.status(400).json({ error: 'No request body' });
+  }
 
-    // ============================================
-    // HANDLE VALIDATION IMMEDIATELY (< 3 seconds)
-    // ============================================
-    if (event === 'endpoint.url_validation') {
-      const plainToken = payload.plainToken;
-      const zoomWebhookSecret = process.env.ZOOM_WEBHOOK_SECRET;
-      
-      if (!zoomWebhookSecret) {
-        return res.status(500).json({ error: 'Webhook secret not configured' });
-      }
-      
-      // Hash the plainToken with webhook secret
+  const { event, payload } = req.body;
+  console.log('Event type:', event);
+  console.log('Payload:', payload);
+
+  // VALIDATION
+  if (event === 'endpoint.url_validation') {
+    console.log('VALIDATION REQUEST RECEIVED');
+    
+    if (!payload || !payload.plainToken) {
+      console.log('ERROR: No plainToken in payload');
+      return res.status(400).json({ error: 'No plainToken' });
+    }
+
+    const plainToken = payload.plainToken;
+    console.log('PlainToken:', plainToken);
+
+    const zoomWebhookSecret = process.env.ZOOM_WEBHOOK_SECRET;
+    
+    if (!zoomWebhookSecret) {
+      console.log('ERROR: ZOOM_WEBHOOK_SECRET not set');
+      return res.status(500).json({ error: 'Webhook secret not configured' });
+    }
+
+    console.log('Secret found, length:', zoomWebhookSecret.length);
+    
+    try {
+      // Create the encrypted token
       const encryptedToken = crypto
         .createHmac('sha256', zoomWebhookSecret)
         .update(plainToken)
         .digest('hex');
       
-      // Return response immediately
-      res.setHeader('Content-Type', 'application/json');
-      return res.status(200).json({
+      console.log('EncryptedToken created:', encryptedToken);
+      
+      const response = {
         plainToken: plainToken,
         encryptedToken: encryptedToken
-      });
-    }
-
-    // ============================================
-    // HANDLE RECORDING COMPLETED
-    // ============================================
-    if (event === 'recording.completed') {
-      // Only import Supabase AFTER validation is done
-      const { createClient } = require('@supabase/supabase-js');
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY
-      );
-
-      const meetingId = payload.object.id;
-      const topic = payload.object.topic;
-      const recordingFiles = payload.object.recording_files;
-
-      console.log(`[Zoom Webhook] Recording completed: ${meetingId}`);
-
-      // Determine call type from meeting topic
-      const callType = determineCallType(topic);
+      };
       
-      if (!callType) {
-        return res.status(200).json({ message: 'Not a tracked call type' });
-      }
-
-      // Get Zoom access token
-      const accessToken = await getZoomAccessToken();
-
-      // Process each recording file
-      for (const file of recordingFiles) {
-        // Handle VTT transcript files
-        if (file.file_type === 'TRANSCRIPT' || file.recording_type === 'audio_transcript') {
-          const vttContent = await downloadTranscript(file.download_url, accessToken);
-          const cleanedTranscript = cleanVTTTranscript(vttContent);
-          
-          await updateCallRecord(supabase, callType, meetingId, topic, null, cleanedTranscript);
-          
-          // Auto-trigger AI analysis
-          if (cleanedTranscript) {
-            await triggerAIAnalysis(callType, meetingId);
-          }
-        }
-
-        // Handle video recordings
-        if (file.file_type === 'MP4' || file.file_type === 'M4A') {
-          const recordingUrl = await downloadRecording(supabase, file.download_url, accessToken);
-          await updateCallRecord(supabase, callType, meetingId, topic, recordingUrl, null);
-        }
-      }
-
-      return res.status(200).json({ 
-        success: true, 
-        message: `${callType} call processed`,
-        meetingId 
-      });
+      console.log('Sending response:', JSON.stringify(response));
+      
+      res.setHeader('Content-Type', 'application/json');
+      res.status(200);
+      res.json(response);
+      
+      console.log('Response sent successfully');
+      return;
+      
+    } catch (error) {
+      console.log('ERROR creating encrypted token:', error);
+      return res.status(500).json({ error: error.message });
     }
-
-    // Handle other events
-    return res.status(200).json({ message: 'Event received' });
-
-  } catch (error) {
-    console.error('[Zoom Webhook] Error:', error);
-    return res.status(500).json({ error: error.message });
   }
+
+  // Other events
+  console.log('Other event received:', event);
+  return res.status(200).json({ message: 'Event received', event: event });
 };
-
-// ============================================
-// HELPER FUNCTIONS
-// ============================================
-
-function determineCallType(topic) {
-  const topicLower = topic.toLowerCase();
-  
-  if (topicLower.includes('pre-qual') || topicLower.includes('prequal')) {
-    return 'prequal';
-  }
-  if (topicLower.includes('podcast')) {
-    return 'podcast';
-  }
-  if (topicLower.includes('discovery')) {
-    return 'discovery';
-  }
-  if (topicLower.includes('strategy') || topicLower.includes('sales call')) {
-    return 'strategy';
-  }
-  
-  return null;
-}
-
-function cleanVTTTranscript(vttContent) {
-  const lines = vttContent.split('\n');
-  let cleanedLines = [];
-
-  for (let line of lines) {
-    line = line.trim();
-
-    if (
-      line === 'WEBVTT' ||
-      line === '' ||
-      line.match(/^\d+$/) ||
-      line.match(/\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}/) ||
-      line.startsWith('NOTE') ||
-      line.startsWith('Kind:') ||
-      line.startsWith('Language:')
-    ) {
-      continue;
-    }
-
-    let cleanLine = line
-      .replace(/'/g, '')
-      .replace(/'/g, '')
-      .replace(/`/g, '')
-      .replace(/"/g, '"')
-      .replace(/"/g, '"');
-
-    if (cleanLine) {
-      cleanedLines.push(cleanLine);
-    }
-  }
-
-  return cleanedLines.join('\n');
-}
-
-async function downloadTranscript(downloadUrl, accessToken) {
-  const response = await fetch(downloadUrl, {
-    headers: { 'Authorization': `Bearer ${accessToken}` }
-  });
-  return await response.text();
-}
-
-async function getZoomAccessToken() {
-  const credentials = Buffer.from(
-    `${process.env.ZOOM_CLIENT_ID}:${process.env.ZOOM_CLIENT_SECRET}`
-  ).toString('base64');
-  
-  const response = await fetch(
-    `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${process.env.ZOOM_ACCOUNT_ID}`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${credentials}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    }
-  );
-
-  const data = await response.json();
-  return data.access_token;
-}
-
-async function downloadRecording(supabase, downloadUrl, accessToken) {
-  const response = await fetch(downloadUrl, {
-    headers: { 'Authorization': `Bearer ${accessToken}` }
-  });
-
-  const buffer = await response.arrayBuffer();
-  const fileName = `recordings/${Date.now()}-${Math.random().toString(36).substring(7)}.mp4`;
-  
-  const { error } = await supabase.storage
-    .from('call-recordings')
-    .upload(fileName, buffer, { contentType: 'video/mp4' });
-
-  if (error) throw error;
-
-  const { data: urlData } = supabase.storage
-    .from('call-recordings')
-    .getPublicUrl(fileName);
-
-  return urlData.publicUrl;
-}
-
-async function updateCallRecord(supabase, callType, meetingId, topic, recordingUrl, transcript) {
-  const updates = {
-    zoom_meeting_id: meetingId,
-    updated_at: new Date().toISOString()
-  };
-
-  if (recordingUrl) {
-    updates.recording_url = recordingUrl;
-    updates.call_status = 'recorded';
-  }
-
-  if (transcript) {
-    updates.call_status = 'completed';
-  }
-
-  let tableName;
-  switch (callType) {
-    case 'prequal':
-      tableName = 'pre_qualification_calls';
-      if (transcript) updates.transcript = transcript;
-      break;
-    case 'podcast':
-      tableName = 'podcast_interviews';
-      if (transcript) updates.transcript_text = transcript;
-      break;
-    case 'discovery':
-      tableName = 'discovery_calls';
-      if (transcript) updates.transcript = transcript;
-      break;
-    case 'strategy':
-      tableName = 'sales_calls';
-      if (transcript) updates.transcript = transcript;
-      break;
-    default:
-      throw new Error(`Unknown call type: ${callType}`);
-  }
-
-  const { data: existing } = await supabase
-    .from(tableName)
-    .select('id')
-    .eq('zoom_meeting_id', meetingId)
-    .single();
-
-  if (existing) {
-    await supabase
-      .from(tableName)
-      .update(updates)
-      .eq('id', existing.id);
-  } else {
-    await supabase
-      .from(tableName)
-      .insert({ ...updates, created_at: new Date().toISOString() });
-  }
-}
-
-async function triggerAIAnalysis(callType, meetingId) {
-  const actions = {
-    'prequal': 'analyze-prequal',
-    'podcast': 'analyze-podcast',
-    'discovery': 'analyze-discovery',
-    'strategy': 'analyze-sales'
-  };
-
-  const action = actions[callType];
-  if (!action) return;
-
-  try {
-    await fetch('https://growthmanagerpro-backend.vercel.app/api/ai-analyzer', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action: action,
-        callId: meetingId
-      })
-    });
-  } catch (error) {
-    console.error('[Zoom Webhook] AI analysis trigger failed:', error);
-  }
-}
