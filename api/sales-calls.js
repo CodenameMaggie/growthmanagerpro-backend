@@ -210,7 +210,9 @@ module.exports = async (req, res) => {
                 success: true,
                 data: updatedCall
                 
-            } 
+            }); 
+
+        }
 
         // DELETE - Delete sales call
         if (req.method === 'DELETE') {
