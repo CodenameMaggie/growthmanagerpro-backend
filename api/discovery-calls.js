@@ -4,12 +4,12 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Helper function to auto-create sales call when discovery is completed
-async function autoCreateSalesCall(discoveryCall) {
+// Helper function to auto-create strategy call when discovery is completed
+async function autoCreatestrategyCall(discoveryCall) {
   try {
     // Check if already created
-    if (discoveryCall.sales_call_created) {
-      console.log(`[Auto-Create] Sales call already exists for discovery call ${discoveryCall.id}`);
+    if (discoveryCall.strategy_call_created) {
+      console.log(`[Auto-Create] strategy call already exists for discovery call ${discoveryCall.id}`);
       return null;
     }
 
@@ -19,11 +19,11 @@ async function autoCreateSalesCall(discoveryCall) {
       return null;
     }
 
-    console.log(`[Auto-Create] Creating sales call for ${discoveryCall.contact_name}`);
+    console.log(`[Auto-Create] Creating strategy call for ${discoveryCall.contact_name}`);
 
-    // Create sales call
-    const { data: salesCall, error: createError } = await supabase
-      .from('sales_calls')
+    // Create strategy call
+    const { data: strategyCall, error: createError } = await supabase
+      .from('strategy_calls')
       .insert([{
         prospect_name: discoveryCall.contact_name,
         company: discoveryCall.company,
@@ -37,22 +37,22 @@ async function autoCreateSalesCall(discoveryCall) {
 
     if (createError) throw createError;
 
-    // Update discovery call to mark sales call as created
+    // Update discovery call to mark strategy call as created
     const { error: updateError } = await supabase
       .from('discovery_calls')
       .update({
-        sales_call_created: true,
-        sales_call_id: salesCall.id
+        strategy_call_created: true,
+        strategy_call_id: strategyCall.id
       })
       .eq('id', discoveryCall.id);
 
     if (updateError) throw updateError;
 
-    console.log(`[Auto-Create] ✅ Sales call ${salesCall.id} created for discovery call ${discoveryCall.id}`);
-    return salesCall;
+    console.log(`[Auto-Create] ✅ strategy call ${strategyCall.id} created for discovery call ${discoveryCall.id}`);
+    return strategyCall;
 
   } catch (error) {
-    console.error('[Auto-Create] Error creating sales call:', error);
+    console.error('[Auto-Create] Error creating strategy call:', error);
     return null;
   }
 }
@@ -82,7 +82,7 @@ module.exports = async (req, res) => {
         completedCalls: data.filter(c => c.call_status === 'completed').length,
         qualifiedCalls: data.filter(c => c.call_status === 'qualified').length,
         qualificationRate: data.length > 0 ? Math.round((data.filter(c => c.call_status === 'qualified').length / data.length) * 100) : 0,
-        autoProgressedToSales: data.filter(c => c.sales_call_created === true).length
+        autoProgressedTostrategy: data.filter(c => c.strategy_call_created === true).length
       };
 
       return res.status(200).json({
@@ -97,8 +97,8 @@ module.exports = async (req, res) => {
             callStatus: call.call_status,
             callSource: call.call_source,
             notes: call.notes,
-            salesCallCreated: call.sales_call_created,
-            salesCallId: call.sales_call_id,
+            strategyCallCreated: call.strategy_call_created,
+            strategyCallId: call.strategy_call_id,
             created: call.created_at
           })),
           stats
@@ -213,10 +213,10 @@ module.exports = async (req, res) => {
 
       const updatedCall = data[0];
 
-      // 🚀 AUTO-CREATE SALES CALL if completed/qualified
-      let salesCallCreated = null;
+      // 🚀 AUTO-CREATE strategy CALL if completed/qualified
+      let strategyCallCreated = null;
       if (updatedCall.call_status === 'completed' || updatedCall.call_status === 'qualified') {
-        salesCallCreated = await autoCreateSalesCall(updatedCall);
+        strategyCallCreated = await autoCreatestrategyCall(updatedCall);
       }
 
       return res.status(200).json({
@@ -228,14 +228,14 @@ module.exports = async (req, res) => {
           email: updatedCall.email,
           callDate: updatedCall.call_date,
           callStatus: updatedCall.call_status,
-          salesCallCreated: updatedCall.sales_call_created,
-          salesCallId: updatedCall.sales_call_id,
+          strategyCallCreated: updatedCall.strategy_call_created,
+          strategyCallId: updatedCall.strategy_call_id,
           created: updatedCall.created_at
         },
         message: 'Discovery call updated successfully',
-        automation: salesCallCreated ? {
-          salesCallCreated: true,
-          salesCallId: salesCallCreated.id
+        automation: strategyCallCreated ? {
+          strategyCallCreated: true,
+          strategyCallId: strategyCallCreated.id
         } : null
       });
 
