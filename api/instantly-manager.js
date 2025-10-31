@@ -598,7 +598,7 @@ The Modern Design podcast features in-depth conversations with executives and bu
 - Discuss actionable next steps for your growth goals
 
 **About Me:**
-I'm Maggie Forbes, founder of Maggie Forbes Strategies. I specialize in helping B2B companies and service professionals scale from $3M to $10M+ through systematic lead generation, sales enablement, and strategic growth planning. My clients typically see a 7x ROI within 90 days of implementing The Leadership Intelligence System™.
+I'm Maggie Forbes, founder of Maggie Forbes Strategies. I specialize in helping B2B companies and service professionals scale from $3M to $10M+ through systematic lead generation, strategy enablement, and strategic growth planning. My clients typically see a 7x ROI within 90 days of implementing The Leadership Intelligence System™.
 
 Learn more about my work: https://www.maggieforbesstrategies.com
 
@@ -707,30 +707,30 @@ Strategic Growth Architecture System
  */
 async function handleSendStrategy(req, res) {
   try {
-    const { sales_call_id, contact_name, company, recommended_tier, systems } = req.body;
+    const { strategy_call_id, contact_name, company, recommended_tier, systems } = req.body;
 
-    if (!sales_call_id) {
+    if (!strategy_call_id) {
       return res.status(400).json({
         success: false,
-        error: 'sales_call_id is required'
+        error: 'strategy_call_id is required'
       });
     }
 
     console.log(`[Strategy Invite] Processing strategy call invitation`);
 
-    // Get sales call details
-    const { data: salesCall, error: fetchError } = await supabase
-      .from('sales_calls')
+    // Get strategy call details
+    const { data: strategyCall, error: fetchError } = await supabase
+      .from('strategy_calls')
       .select('*, contacts(*)')
-      .eq('id', sales_call_id)
+      .eq('id', strategy_call_id)
       .single();
 
-    if (fetchError || !salesCall) {
-      throw new Error('Sales call not found');
+    if (fetchError || !strategyCall) {
+      throw new Error('strategy call not found');
     }
 
     // Check if email already sent
-    if (salesCall.calendly_invite_sent) {
+    if (strategyCall.calendly_invite_sent) {
       console.log('[Strategy Invite] Email already sent');
       return res.status(200).json({
         success: true,
@@ -739,10 +739,10 @@ async function handleSendStrategy(req, res) {
       });
     }
 
-    const contact = salesCall.contacts || {};
+    const contact = strategyCall.contacts || {};
     const firstName = contact.name?.split(' ')[0] || contact_name?.split(' ')[0] || 'there';
     const companyName = contact.company || company || 'your business';
-    const tier = recommended_tier || salesCall.recommended_tier || 'Growth Architecture';
+    const tier = recommended_tier || strategyCall.recommended_tier || 'Growth Architecture';
 
     // SENDER TRACKING LOGIC
     console.log('[Strategy Invite] Determining sender for:', contact.email);
@@ -829,15 +829,15 @@ Strategic Growth Architecture System`;
     const instantlyResult = await instantlyResponse.json();
     console.log('[Strategy Invite] Instantly response:', instantlyResult);
 
-    // Update sales call record
+    // Update strategy call record
     await supabase
-      .from('sales_calls')
+      .from('strategy_calls')
       .update({
         calendly_invite_sent: true,
         calendly_invite_sent_at: new Date().toISOString(),
         calendly_link: 'https://calendly.com/maggie-maggieforbesstrategies/strategy-call'
       })
-      .eq('id', sales_call_id);
+      .eq('id', strategy_call_id);
 
     console.log('[Strategy Invite] ✅ Email sent successfully from sender:', senderEmail);
 
