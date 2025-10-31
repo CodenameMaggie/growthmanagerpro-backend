@@ -19,10 +19,10 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // GET - Fetch all strategy/sales calls
+    // GET - Fetch all strategy/strategy calls
     if (req.method === 'GET') {
       const { data, error } = await supabase
-        .from('sales_calls')
+        .from('strategy_calls')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -39,7 +39,7 @@ module.exports = async (req, res) => {
       const callData = req.body;
 
       const { data, error } = await supabase
-        .from('sales_calls')
+        .from('strategy_calls')
         .insert(callData)
         .select()
         .single();
@@ -61,7 +61,7 @@ module.exports = async (req, res) => {
       }
 
       const { data, error } = await supabase
-        .from('sales_calls')
+        .from('strategy_calls')
         .update(updates)
         .eq('id', id)
         .select()
@@ -84,7 +84,7 @@ module.exports = async (req, res) => {
       }
 
       const { error } = await supabase
-        .from('sales_calls')
+        .from('strategy_calls')
         .delete()
         .eq('id', id);
 
