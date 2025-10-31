@@ -132,8 +132,8 @@ function determineCallType(topic) {
   if (topicLower.includes('discovery')) {
     return 'discovery';
   }
-  if (topicLower.includes('strategy') || topicLower.includes('sales call')) {
-    return 'strategy';  // ✅ USES "strategy" not "sales"
+  if (topicLower.includes('strategy') || topicLower.includes('strategy call')) {
+    return 'strategy';  // ✅ USES "strategy" not "strategy"
   }
   
   return null;
@@ -250,7 +250,7 @@ async function updateCallRecord(supabase, callType, meetingId, topic, recordingU
       tableName = 'discovery_calls';
       if (transcript) updates.transcript = transcript;
       break;
-    case 'strategy':  // ✅ USES "strategy" not "sales"
+    case 'strategy':  // ✅ USES "strategy" not "strategy"
       tableName = 'strategy_calls';  // ✅ Correct table name
       if (transcript) updates.transcript = transcript;
       break;
@@ -287,7 +287,7 @@ async function triggerAIAnalysis(callType, meetingId) {
     'prequal': 'analyze-prequal',
     'podcast': 'analyze-podcast',
     'discovery': 'analyze-discovery',
-    'strategy': 'analyze-strategy'  // ✅ USES "strategy" not "sales"
+    'strategy': 'analyze-strategy'  // ✅ USES "strategy" not "strategy"
   };
 
   const action = actions[callType];
