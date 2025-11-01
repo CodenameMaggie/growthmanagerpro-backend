@@ -6,24 +6,15 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Permission definitions matching permissions.js
 // Permission definitions matching permissions.js
+
 const PERMISSIONS = {
   admin: 'all',
   
   advisor: [
-    'dashboard.view',
-    'contacts.view',
     'calls.view',
-    'calls.create',
-    'calls.edit',
     'deals.view',
-    'deals.create',
-    'deals.edit',
     'pipeline.view',
-    'pipeline.edit',
-    'campaigns.view',
-    'campaigns.create',
-    'campaigns.edit'
-    // ❌ NO sprints permissions for advisor!
+    'campaigns.view'
   ],
   
   manager: [
@@ -44,22 +35,19 @@ const PERMISSIONS = {
     'campaigns.create',
     'campaigns.edit',
     'financials.view',
-    'sprints.view',      // ✅ Manager keeps sprints
+    'sprints.view',
     'sprints.create',
     'sprints.edit',
     'users.view'
   ],
   
   client: [
-    'dashboard.view',
-    'contacts.view',
     'calls.view',
     'deals.view',
-    'pipeline.view',
-    'financials.view'
+    'pipeline.view'
   ],
   
-  saas: 'all'  // SaaS clients get full platform access
+  saas: 'all'
 };
 
 
@@ -101,7 +89,12 @@ module.exports = async (req, res) => {
       // Admin login - check password (you should hash passwords in production!)
       if (adminUser.password === password) {
         const userRole = adminUser.role || 'admin';
-
+        // Determine redirect based on role
+      let redirectTo = '/dashboard.html';
+      if (userRole === 'advisor') {
+        redirectTo = '/advisor-dashboard.html';
+          }
+        
         // CREATE SUPABASE AUTH SESSION
         // This is the key difference - we create a real Supabase session
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -120,7 +113,7 @@ module.exports = async (req, res) => {
               id: adminUser.id,
               name: adminUser.name,
               role: userRole,
-              type: 'admin',
+              type: userRole === 'advisor' ? 'advisor' : 'admin',
               permissions: PERMISSIONS[userRole] || PERMISSIONS.admin
             }
           });
