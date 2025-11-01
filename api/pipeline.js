@@ -24,43 +24,44 @@ module.exports = async (req, res) => {
         // GET - Fetch all contacts organized by 5-stage pipeline
         if (req.method === 'GET') {
             // Define the 5 pipeline stages
-            const stageDefinitions = [
-                { 
-                    name: 'Pre-Qualified', 
-                    key: 'pre-qualified', 
-                    icon: '📋',
-                    source: 'contacts',
-                    filter: { stage: 'pre-qualified' }
-                },
-                { 
-                    name: 'Podcast Interview', 
-                    key: 'podcast', 
-                    icon: '🎙️',
-                    source: 'podcast_interviews',
-                    filter: { status: 'completed' }
-                },
-                { 
-                    name: 'Discovery Call', 
-                    key: 'discovery', 
-                    icon: '🔍',
-                    source: 'discovery_calls',
-                    filter: { status: ['scheduled', 'completed'] }
-                },
-                { 
-                    name: 'Strategy Call', 
-                    key: 'strategy', 
-                    icon: '💼',
-                    source: 'strategy_calls',
-                    filter: { status: ['scheduled', 'completed'] }
-                },
-                { 
-                    name: 'Active Deals', 
-                    key: 'deals', 
-                    icon: '🤝',
-                    source: 'deals',
-                    filter: { status: ['active', 'pending'] }
-                }
-            ];
+            // Define the 6 pipeline stages (added Pre-Qual Calls)
+const stageDefinitions = [
+    { 
+        name: 'Pre-Qual Calls', 
+        key: 'prequal', 
+        icon: '📞',
+        source: 'pre_qualification_calls',
+        filter: { call_status: ['completed', 'recorded'] }
+    },
+    { 
+        name: 'Podcast Interview', 
+        key: 'podcast', 
+        icon: '🎙️',
+        source: 'podcast_interviews',
+        filter: {}  // Show all podcast interviews
+    },
+    { 
+        name: 'Discovery Call', 
+        key: 'discovery', 
+        icon: '🔍',
+        source: 'discovery_calls',
+        filter: {}  // Show all discovery calls
+    },
+    { 
+        name: 'Strategy Call', 
+        key: 'strategy', 
+        icon: '💼',
+        source: 'strategy_calls',
+        filter: {}  // Show all strategy calls
+    },
+    { 
+        name: 'Active Deals', 
+        key: 'deals', 
+        icon: '🤝',
+        source: 'deals',
+        filter: { status: ['active', 'pending', 'open'] }
+    }
+];
 
             // Fetch data for each stage
             const stages = await Promise.all(stageDefinitions.map(async (stageDef) => {
@@ -87,20 +88,21 @@ module.exports = async (req, res) => {
                         };
                     }
 
-                    // Transform data to standard format
+                   // Transform data to standard format
                     const prospects = (data || []).map(item => ({
                         id: item.id,
                         name: item.name || item.guest_name || item.client_name || item.contact_name || 'Unnamed',
                         email: item.email || item.guest_email || item.client_email || '',
                         company: item.company || item.guest_company || item.client_company || '',
                         phone: item.phone || '',
-                        score: item.podcast_score || item.qualification_score || 0,
-                        podcastScore: item.podcast_score || 0,
-                        createdAt: item.created_at || item.interview_date || item.call_date,
+                        score: item.ai_score || item.podcast_score || item.qualification_score || 0,  // ← Added ai_score
+                        podcastScore: item.ai_score || item.podcast_score || 0,  // ← Added ai_score
+                        createdAt: item.created_at || item.interview_date || item.call_date || item.scheduled_date,
                         updatedAt: item.updated_at || item.created_at,
                         stage: stageDef.key,
                         notes: item.notes || '',
-                        assignedSender: item.assigned_sender_email || null
+                        assignedSender: item.assigned_sender_email || null,
+                        callStatus: item.call_status || item.status || null  // ← Added for pre-qual calls
                     }));
 
                     return {
