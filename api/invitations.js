@@ -6,6 +6,7 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const INSTANTLY_API_KEY = process.env.INSTANTLY_API_KEY;
+const INSTANTLY_CAMPAIGN_ID = process.env.INSTANTLY_INVITATION_CAMPAIGN_ID;
 
 module.exports = async (req, res) => {
   // ✅ CORS headers
@@ -104,7 +105,8 @@ module.exports = async (req, res) => {
     
     console.log('[Invitations] ✅ Created:', { id: invitation.id, email, role });
 
-    // 📧 SEND EMAIL VIA INSTANTLY
+    // 📧 SEND EMAIL VIA INSTANTLY CAMPAIGN
+    let emailSent = false;
     try {
       const roleNames = {
         admin: 'Administrator',
@@ -113,22 +115,7 @@ module.exports = async (req, res) => {
         saas: 'SaaS Client'
       };
 
-      const emailBody = `
-Hi there!
-
-You've been invited to join Growth Manager Pro as a ${roleNames[role]}.
-
-Click the link below to create your account:
-${signupLink}
-
-This invitation expires in 7 days.
-
-Welcome to the team!
-
-Best regards,
-Maggie Forbes
-Growth Manager Pro
-      `.trim();
+      console.log('[Invitations] Sending email via Instantly campaign...');
 
       const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/lead/add', {
         method: 'POST',
@@ -137,10 +124,10 @@ Growth Manager Pro
         },
         body: JSON.stringify({
           api_key: INSTANTLY_API_KEY,
-          campaign_id: process.env.INSTANTLY_INVITATION_CAMPAIGN_ID, // Create a campaign for invitations
+          campaign_id: INSTANTLY_CAMPAIGN_ID,
           email: email,
-          first_name: email.split('@')[0], // Use email prefix as name
-          personalization: {
+          first_name: email.split('@')[0],
+          variables: {
             signup_link: signupLink,
             role: roleNames[role]
           }
@@ -149,16 +136,16 @@ Growth Manager Pro
 
       const instantlyResult = await instantlyResponse.json();
       
-      if (instantlyResult.status === 'success') {
+      if (instantlyResponse.ok) {
         console.log('[Invitations] ✅ Email sent via Instantly');
+        emailSent = true;
       } else {
         console.error('[Invitations] Instantly error:', instantlyResult);
-        // Don't fail the invitation if email fails
       }
 
     } catch (emailError) {
       console.error('[Invitations] Email sending error:', emailError);
-      // Don't fail the invitation if email fails - user still gets the link in the modal
+      // Don't fail the invitation if email fails
     }
 
     return res.status(201).json({
@@ -170,7 +157,7 @@ Growth Manager Pro
         signupLink: signupLink,
         expiresAt: invitation.expires_at
       },
-      emailSent: true // Let frontend know email was sent
+      emailSent: emailSent
     });
     
   } catch (error) {
