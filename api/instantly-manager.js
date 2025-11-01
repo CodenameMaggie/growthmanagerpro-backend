@@ -392,7 +392,7 @@ async function handleSendDiscovery(req, res) {
     console.log('[Discovery Invite] Using sender:', senderEmail);
 
     // SEND VIA INSTANTLY V2 API
-    const instantlyResponse = await fetch(`POST https://api.instantly.ai/api/v2/leads`, {
+    const instantlyResponse = await fetch('https://api.instantly.ai/api/v2/leads', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${instantlyApiKey}`,
@@ -400,7 +400,10 @@ async function handleSendDiscovery(req, res) {
       },
       body: JSON.stringify({
         email: contact.email,
-        eaccount: senderEmail
+        campaign: campaignId,
+        eaccount: senderEmail,
+        first_name: firstName,
+        company_name: company
       })
     });
 
@@ -534,7 +537,7 @@ async function handleSendPodcast(req, res) {
     console.log('[Podcast Invite] Sending email to:', prequalCall.guest_email);
 
     // SEND VIA INSTANTLY V2 API
-    const instantlyResponse = await fetch(`POST https://api.instantly.ai/api/v2/leads`, {
+    const instantlyResponse = await fetch('https://api.instantly.ai/api/v2/leads', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${instantlyApiKey}`,
@@ -542,7 +545,10 @@ async function handleSendPodcast(req, res) {
       },
       body: JSON.stringify({
         email: prequalCall.guest_email,
-        eaccount: senderEmail
+        campaign: campaignId,
+        eaccount: senderEmail,
+        first_name: prequalCall.guest_name?.split(' ')[0] || '',
+        last_name: prequalCall.guest_name?.split(' ').slice(1).join(' ') || ''
       })
     });
 
@@ -683,7 +689,7 @@ async function handleSendStrategy(req, res) {
     console.log('[Strategy Invite] Using sender:', senderEmail);
 
     // SEND VIA INSTANTLY V2 API
-    const instantlyResponse = await fetch(`POST https://api.instantly.ai/api/v2/leads`, {
+    const instantlyResponse = await fetch('https://api.instantly.ai/api/v2/leads', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${instantlyApiKey}`,
@@ -691,7 +697,10 @@ async function handleSendStrategy(req, res) {
       },
       body: JSON.stringify({
         email: contact.email,
-        eaccount: senderEmail
+        campaign: campaignId,
+        eaccount: senderEmail,
+        first_name: firstName,
+        company_name: companyName
       })
     });
 
