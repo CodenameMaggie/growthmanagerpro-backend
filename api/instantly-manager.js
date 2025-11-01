@@ -408,7 +408,7 @@ Founder, Maggie Forbes Strategies
 Strategic Growth Architecture System`;
 
     // SEND VIA INSTANTLY
-    const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/lead/add', {
+    const instantlyResponse = await fetch('https://api.instantly.ai/api/v2/lead/add', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -614,14 +614,13 @@ Best regards,
 
 Maggie Forbes
 Founder, Maggie Forbes Strategies
-Strategic Growth Architecture System
 
 🌐 www.maggieforbesstrategies.com`;
 
     console.log('[Podcast Invite] Sending email to:', prequalCall.guest_email);
 
     // SEND VIA INSTANTLY (with sender tracking)
-    const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/lead/add', {
+    const instantlyResponse = await fetch('https://api.instantly.ai/api/v2/lead/add', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -798,7 +797,7 @@ Founder, Maggie Forbes Strategies
 Strategic Growth Architecture System`;
 
     // SEND VIA INSTANTLY
-    const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/lead/add', {
+    const instantlyResponse = await fetch('https://api.instantly.ai/api/v2/lead/add', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
