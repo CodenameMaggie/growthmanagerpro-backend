@@ -74,14 +74,16 @@ async function getAssignedSender(leadEmail) {
   try {
     console.log(`[Sender Tracker] Checking assigned sender for: ${leadEmail}`);
     
-    const response = await fetch(
-      `https://api.instantly.ai/api/v2/emails?lead=${leadEmail}&limit=1`,
-      {
-        headers: {
-          'Authorization': `Bearer ${instantlyApiKey}`
-        }
-      }
-    );
+    const response = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
+  method: 'POST',          // ✅ Here
+  headers: {               // ✅ All headers together
+    'Authorization': `Bearer ${instantlyApiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    email: guestEmail,
+    eaccount: senderEmail  // ✅ Just these in the body
+  })
 
     if (!response.ok) {
       console.error('[Sender Tracker] Instantly API error:', response.status);
@@ -408,25 +410,16 @@ Founder, Maggie Forbes Strategies
 Strategic Growth Architecture System`;
 
     // SEND VIA INSTANTLY
-    const instantlyResponse = await fetch('https://api.instantly.ai/api/v2/lead/add', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        api_key: instantlyApiKey,
-        campaign_id: campaignId,
-        email: contact.email,
-        first_name: firstName,
-        last_name: contact.name?.split(' ').slice(1).join(' ') || '',
-        company_name: company,
-        personalization: {
-          discovery_call_link: 'https://calendly.com/maggie-maggieforbesstrategies/discovery-call'
-        },
-        variables: {
-          subject: emailSubject,
-          body: emailBody
-        }
+    const instantlyResponse = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
+  method: 'POST',          // ✅ Here
+  headers: {               // ✅ All headers together
+    'Authorization': `Bearer ${instantlyApiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    email: guestEmail,
+    eaccount: senderEmail  // ✅ Just these in the body
+  })
       })
     });
 
@@ -620,11 +613,16 @@ Founder, Maggie Forbes Strategies
     console.log('[Podcast Invite] Sending email to:', prequalCall.guest_email);
 
     // SEND VIA INSTANTLY (with sender tracking)
-    const instantlyResponse = await fetch('https://api.instantly.ai/api/v2/lead/add', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
+  method: 'POST',          // ✅ Here
+  headers: {               // ✅ All headers together
+    'Authorization': `Bearer ${instantlyApiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    email: guestEmail,
+    eaccount: senderEmail  // ✅ Just these in the body
+  })
       body: JSON.stringify({
         api_key: instantlyApiKey,
         campaign_id: campaignId,
@@ -797,27 +795,17 @@ Founder, Maggie Forbes Strategies
 Strategic Growth Architecture System`;
 
     // SEND VIA INSTANTLY
-    const instantlyResponse = await fetch('https://api.instantly.ai/api/v2/lead/add', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        api_key: instantlyApiKey,
-        campaign_id: campaignId,
-        email: contact.email,
-        first_name: firstName,
-        last_name: contact.name?.split(' ').slice(1).join(' ') || '',
-        company_name: companyName,
-        personalization: {
-          strategy_call_link: 'https://calendly.com/maggie-maggieforbesstrategies/strategy-call',
-          recommended_tier: tier
-        },
-        variables: {
-          subject: emailSubject,
-          body: emailBody
-        }
-      })
+   fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
+  method: 'POST',          // ✅ Here
+  headers: {               // ✅ All headers together
+    'Authorization': `Bearer ${instantlyApiKey}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    email: guestEmail,
+    eaccount: senderEmail  // ✅ Just these in the body
+  })
+     
     });
 
     if (!instantlyResponse.ok) {
