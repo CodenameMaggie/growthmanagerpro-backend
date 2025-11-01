@@ -74,16 +74,14 @@ async function getAssignedSender(leadEmail) {
   try {
     console.log(`[Sender Tracker] Checking assigned sender for: ${leadEmail}`);
     
-    const response = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
-  method: 'POST',          // ✅ Here
-  headers: {               // ✅ All headers together
-    'Authorization': `Bearer ${instantlyApiKey}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    email: guestEmail,
-    eaccount: senderEmail  // ✅ Just these in the body
-  })
+    const response = await fetch(
+      `https://api.instantly.ai/api/v2/emails?lead=${leadEmail}&limit=1`,
+      {
+        headers: {
+          'Authorization': `Bearer ${instantlyApiKey}`
+        }
+      }
+    );
 
     if (!response.ok) {
       console.error('[Sender Tracker] Instantly API error:', response.status);
@@ -393,33 +391,16 @@ async function handleSendDiscovery(req, res) {
     console.log('[Discovery Invite] Using campaign:', campaignId);
     console.log('[Discovery Invite] Using sender:', senderEmail);
 
-    // EMAIL TEMPLATE
-    const emailSubject = `Let's explore if we're a fit`;
-    
-    const emailBody = `Hi ${firstName},
-
-Thanks for our great podcast conversation! I'd love to continue our discussion and explore how The Strategic Growth Architecture Systme™ could help ${company} achieve your growth goals.
-
-Schedule a discovery call:
-https://calendly.com/maggie-maggieforbesstrategies/discovery-call
-
-Looking forward to it!
-
-Maggie Forbes
-Founder, Maggie Forbes Strategies
-Strategic Growth Architecture System`;
-
-    // SEND VIA INSTANTLY
+    // SEND VIA INSTANTLY V2 API
     const instantlyResponse = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
-  method: 'POST',          // ✅ Here
-  headers: {               // ✅ All headers together
-    'Authorization': `Bearer ${instantlyApiKey}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    email: guestEmail,
-    eaccount: senderEmail  // ✅ Just these in the body
-  })
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${instantlyApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: contact.email,
+        eaccount: senderEmail
       })
     });
 
@@ -550,95 +531,18 @@ async function handleSendPodcast(req, res) {
 
     console.log('[Podcast Invite] Using campaign:', campaignId);
     console.log('[Podcast Invite] Using sender:', senderEmail);
-
-    // Build personalized email content
-    const firstName = prequalCall.guest_name.split(' ')[0];
-    const companyName = prequalCall.company || 'your business';
-    
-    // Format growth challenges for email
-    const challenges = prequalCall.growth_challenges || [];
-    const challengesText = challenges.length > 0 
-      ? challenges.slice(0, 2).join(' and ')
-      : 'the growth challenges you mentioned';
-    
-    // Format podcast topics
-    const topics = prequalCall.podcast_topics || [];
-    const topicsText = topics.length > 0 
-      ? topics.slice(0, 2).join(', ')
-      : 'scaling strategies and leadership development';
-
-    // Build personalized intro based on strengths
-    let personalNote = '';
-    const strengths = prequalCall.strengths || [];
-    if (strengths.length > 0) {
-      const strength = strengths[0];
-      personalNote = `I was particularly impressed by ${strength.toLowerCase()}. `;
-    }
-
-    const emailSubject = `${firstName}, let's continue our conversation on the podcast 🎙️`;
-    
-    const emailBody = `Hi ${firstName},
-
-Thanks for taking the time to speak with me during our pre-podcast call! ${personalNote}I really enjoyed learning about ${companyName} and hearing your perspective on ${challengesText}.
-
-Based on our conversation, I think there's a great opportunity for us to dive deeper into your growth strategy. I'd love to invite you to be a guest on my podcast, where we explore ${topicsText} with business leaders like yourself.
-
-**About the Podcast:**
-The Modern Design podcast features in-depth conversations with executives and business owners who are scaling their operations and overcoming real growth challenges. It's a 30-minute discussion where we can:
-
-- Explore the specific challenges you're facing with ${challengesText}
-- Share proven strategies that have worked for similar businesses
-- Discuss actionable next steps for your growth goals
-
-**About Me:**
-I'm Maggie Forbes, founder of Maggie Forbes Strategies. I specialize in helping B2B companies and service professionals scale from $3M to $10M+ through systematic lead generation, strategy enablement, and strategic growth planning. My clients typically see a 7x ROI within 90 days of implementing The Leadership Intelligence System™.
-
-Learn more about my work: https://www.maggieforbesstrategies.com
-
-**Next Steps:**
-The podcast is conversational and value-focused—my goal is to help you gain clarity on your next growth phase while sharing insights that could benefit other business leaders facing similar challenges.
-
-Schedule your 30-minute podcast interview here:
-👉 https://calendly.com/maggie-maggieforbesstrategies/podcast-call-1
-
-I'm looking forward to continuing our conversation!
-
-Best regards,
-
-Maggie Forbes
-Founder, Maggie Forbes Strategies
-
-🌐 www.maggieforbesstrategies.com`;
-
     console.log('[Podcast Invite] Sending email to:', prequalCall.guest_email);
 
-    // SEND VIA INSTANTLY (with sender tracking)
-fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
-  method: 'POST',          // ✅ Here
-  headers: {               // ✅ All headers together
-    'Authorization': `Bearer ${instantlyApiKey}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    email: guestEmail,
-    eaccount: senderEmail  // ✅ Just these in the body
-  })
+    // SEND VIA INSTANTLY V2 API
+    const instantlyResponse = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${instantlyApiKey}`,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
-        api_key: instantlyApiKey,
-        campaign_id: campaignId,
         email: prequalCall.guest_email,
-        first_name: firstName,
-        last_name: prequalCall.guest_name.split(' ').slice(1).join(' ') || '',
-        company_name: companyName,
-        personalization: {
-          podcast_link: 'https://calendly.com/maggie-maggieforbesstrategies/podcast-call-1',
-          challenges: challengesText,
-          topics: topicsText
-        },
-        variables: {
-          subject: emailSubject,
-          body: emailBody
-        }
+        eaccount: senderEmail
       })
     });
 
@@ -752,14 +656,14 @@ async function handleSendStrategy(req, res) {
     
     if (senderEmail) {
       console.log('[Strategy Invite] Found stored sender:', senderEmail);
-      campaignId = getCampaignForSender('proposal', senderEmail);
+      campaignId = getCampaignForSender('strategy', senderEmail);
     } else {
       senderEmail = await getAssignedSender(contact.email);
       
       if (senderEmail) {
         console.log('[Strategy Invite] Found sender from Instantly:', senderEmail);
         await storeSenderAssignment(contact.email, senderEmail);
-        campaignId = getCampaignForSender('proposal', senderEmail);
+        campaignId = getCampaignForSender('strategy', senderEmail);
       } else {
         const pool = await getNextAvailablePool();
         const poolSenders = SENDER_POOLS[pool].senders;
@@ -767,7 +671,7 @@ async function handleSendStrategy(req, res) {
         
         console.log('[Strategy Invite] Assigned to Pool', pool, 'sender:', senderEmail);
         await storeSenderAssignment(contact.email, senderEmail);
-        campaignId = getCampaignForPool(pool, 'proposal');
+        campaignId = getCampaignForPool(pool, 'strategy');
       }
     }
 
@@ -778,34 +682,17 @@ async function handleSendStrategy(req, res) {
     console.log('[Strategy Invite] Using campaign:', campaignId);
     console.log('[Strategy Invite] Using sender:', senderEmail);
 
-    // EMAIL TEMPLATE
-    const emailSubject = `Your custom growth strategy is ready`;
-    
-    const emailBody = `Hi ${firstName},
-
-Based on our discovery conversation, I'd like to schedule a strategy call to present your customized ${tier} implementation plan for ${companyName}.
-
-Schedule your strategy call here:
-https://calendly.com/maggie-maggieforbesstrategies/strategy-call
-
-Looking forward to showing you what's possible!
-
-Maggie Forbes
-Founder, Maggie Forbes Strategies
-Strategic Growth Architecture System`;
-
-    // SEND VIA INSTANTLY
-   fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
-  method: 'POST',          // ✅ Here
-  headers: {               // ✅ All headers together
-    'Authorization': `Bearer ${instantlyApiKey}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    email: guestEmail,
-    eaccount: senderEmail  // ✅ Just these in the body
-  })
-     
+    // SEND VIA INSTANTLY V2 API
+    const instantlyResponse = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${instantlyApiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        email: contact.email,
+        eaccount: senderEmail
+      })
     });
 
     if (!instantlyResponse.ok) {
