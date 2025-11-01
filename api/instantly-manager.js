@@ -392,7 +392,7 @@ async function handleSendDiscovery(req, res) {
     console.log('[Discovery Invite] Using sender:', senderEmail);
 
     // SEND VIA INSTANTLY V2 API
-    const instantlyResponse = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
+    const instantlyResponse = await fetch(`POST https://api.instantly.ai/api/v2/leads`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${instantlyApiKey}`,
@@ -534,7 +534,7 @@ async function handleSendPodcast(req, res) {
     console.log('[Podcast Invite] Sending email to:', prequalCall.guest_email);
 
     // SEND VIA INSTANTLY V2 API
-    const instantlyResponse = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
+    const instantlyResponse = await fetch(`POST https://api.instantly.ai/api/v2/leads`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${instantlyApiKey}`,
@@ -683,7 +683,7 @@ async function handleSendStrategy(req, res) {
     console.log('[Strategy Invite] Using sender:', senderEmail);
 
     // SEND VIA INSTANTLY V2 API
-    const instantlyResponse = await fetch(`https://api.instantly.ai/api/v2/campaigns/${campaignId}/leads`, {
+    const instantlyResponse = await fetch(`POST https://api.instantly.ai/api/v2/leads`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${instantlyApiKey}`,
