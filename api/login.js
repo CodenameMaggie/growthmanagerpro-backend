@@ -148,9 +148,9 @@ module.exports = async (req, res) => {
               name: adminUser.name,
               email: adminUser.email,
               role: userRole,
-              type: 'admin',
+              type: userRole === 'advisor' ? 'advisor' : 'admin',  // ✅ CORRECT
               permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
-              redirectTo: '/dashboard.html'
+             redirectTo: redirectTo  // ✅ CORRECT (uses the variable you created)
             },
             session: signInData.session
           });
@@ -172,7 +172,7 @@ module.exports = async (req, res) => {
             name: adminUser.name,
             email: adminUser.email,
             role: userRole,
-            type: 'admin',
+            type: userRole === 'advisor' ? 'advisor' : 'admin',  // ✅ CORRECT
             permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
             redirectTo: '/dashboard.html'
           },
