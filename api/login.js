@@ -5,21 +5,63 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Permission definitions matching permissions.js
+// Permission definitions matching permissions.js
 const PERMISSIONS = {
   admin: 'all',
+  
+  advisor: [
+    'dashboard.view',
+    'contacts.view',
+    'calls.view',
+    'calls.create',
+    'calls.edit',
+    'deals.view',
+    'deals.create',
+    'deals.edit',
+    'pipeline.view',
+    'pipeline.edit',
+    'campaigns.view',
+    'campaigns.create',
+    'campaigns.edit'
+    // ❌ NO sprints permissions for advisor!
+  ],
+  
   manager: [
-    'dashboard.view', 'dashboard.edit', 'contacts.view', 'contacts.create',
-    'contacts.edit', 'calls.view', 'calls.create', 'calls.edit',
-    'deals.view', 'deals.create', 'deals.edit', 'pipeline.view',
-    'pipeline.edit', 'campaigns.view', 'campaigns.create', 'campaigns.edit',
-    'financials.view', 'sprints.view', 'sprints.create', 'sprints.edit',
+    'dashboard.view',
+    'dashboard.edit',
+    'contacts.view',
+    'contacts.create',
+    'contacts.edit',
+    'calls.view',
+    'calls.create',
+    'calls.edit',
+    'deals.view',
+    'deals.create',
+    'deals.edit',
+    'pipeline.view',
+    'pipeline.edit',
+    'campaigns.view',
+    'campaigns.create',
+    'campaigns.edit',
+    'financials.view',
+    'sprints.view',      // ✅ Manager keeps sprints
+    'sprints.create',
+    'sprints.edit',
     'users.view'
   ],
+  
   client: [
-    'dashboard.view', 'contacts.view', 'calls.view', 'deals.view',
-    'pipeline.view', 'financials.view'
-  ]
+    'dashboard.view',
+    'contacts.view',
+    'calls.view',
+    'deals.view',
+    'pipeline.view',
+    'financials.view'
+  ],
+  
+  saas: 'all'  // SaaS clients get full platform access
 };
+
 
 module.exports = async (req, res) => {
  res.setHeader('Access-Control-Allow-Origin', '*');
