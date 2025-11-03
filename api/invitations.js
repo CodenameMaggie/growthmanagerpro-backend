@@ -105,7 +105,7 @@ module.exports = async (req, res) => {
     
     console.log('[Invitations] ✅ Created:', { id: invitation.id, email, role });
 
-    // 📧 SEND EMAIL VIA INSTANTLY CAMPAIGN
+    // 📧 SEND EMAIL VIA INSTANTLY CAMPAIGN (V2 API - FIXED!)
     let emailSent = false;
     try {
       const roleNames = {
@@ -115,17 +115,20 @@ module.exports = async (req, res) => {
         saas: 'SaaS Client'
       };
 
-      console.log('[Invitations] Sending email via Instantly campaign...');
+      console.log('[Invitations] Sending email via Instantly V2 API...');
+      console.log('[Invitations] Campaign ID:', INSTANTLY_CAMPAIGN_ID);
+      console.log('[Invitations] Email:', email);
 
-      const instantlyResponse = await fetch('https://api.instantly.ai/api/v1/lead/add', {
+      // ✅ FIXED: Using V2 API with Bearer auth (matches working podcast code)
+      const instantlyResponse = await fetch('https://api.instantly.ai/api/v2/leads', {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${INSTANTLY_API_KEY}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          api_key: INSTANTLY_API_KEY,
-          campaign_id: INSTANTLY_CAMPAIGN_ID,
           email: email,
+          campaign: INSTANTLY_CAMPAIGN_ID,  // ✅ Changed from campaign_id to campaign
           first_name: email.split('@')[0],
           variables: {
             signup_link: signupLink,
@@ -137,10 +140,12 @@ module.exports = async (req, res) => {
       const instantlyResult = await instantlyResponse.json();
       
       if (instantlyResponse.ok) {
-        console.log('[Invitations] ✅ Email sent via Instantly');
+        console.log('[Invitations] ✅ Email sent via Instantly V2');
+        console.log('[Invitations] Instantly response:', instantlyResult);
         emailSent = true;
       } else {
         console.error('[Invitations] Instantly error:', instantlyResult);
+        console.error('[Invitations] Response status:', instantlyResponse.status);
       }
 
     } catch (emailError) {
