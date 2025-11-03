@@ -72,11 +72,11 @@ module.exports = async (req, res) => {
         console.log(`[Manual Import] ✅ Transcript downloaded (${transcript.length} chars)`);
       }
 
-      // Download video recording
+      // Store Zoom recording URL (don't download - files are too large)
       if (file.file_type === 'MP4' || file.file_type === 'M4A') {
-        console.log(`[Manual Import] Downloading recording...`);
-        recordingUrl = await downloadAndStoreRecording(supabase, file.download_url, accessToken);
-        console.log(`[Manual Import] ✅ Recording stored: ${recordingUrl}`);
+        console.log(`[Manual Import] Storing Zoom recording URL...`);
+        recordingUrl = file.download_url; // Just store the Zoom URL
+        console.log(`[Manual Import] ✅ Recording URL stored`);
       }
     }
 
