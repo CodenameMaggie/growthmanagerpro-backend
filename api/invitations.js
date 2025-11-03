@@ -118,10 +118,10 @@ module.exports = async (req, res) => {
 
       console.log('[Invitations] Sending email via Instantly V2 API...');
       console.log('[Invitations] Campaign ID:', INSTANTLY_CAMPAIGN_ID);
-      console.log('[Invitations] Sender Email: m.forbes@easymaggieforbesstrategies.com');
+      console.log('[Invitations] Sender Email: support@growthmanagerpro.com');
       console.log('[Invitations] Recipient Email:', email);
 
-      // ✅ Using existing easymaggieforbesstrategies.com sender (already connected in Instantly)
+      // ✅ Using Growth Manager Pro support email (proper branding!)
       const instantlyResponse = await fetch('https://api.instantly.ai/api/v2/leads', {
         method: 'POST',
         headers: {
@@ -131,7 +131,7 @@ module.exports = async (req, res) => {
         body: JSON.stringify({
           email: email,
           campaign: INSTANTLY_CAMPAIGN_ID,
-          from: 'm.forbes@easymaggieforbesstrategies.com',  // ✅ This sender already working
+          from: 'support@growthmanagerpro.com',  // ✅ Professional Growth Manager Pro branding
           first_name: email.split('@')[0],
           variables: {
             signup_link: signupLink,
@@ -143,7 +143,7 @@ module.exports = async (req, res) => {
       const instantlyResult = await instantlyResponse.json();
       
       if (instantlyResponse.ok) {
-        console.log('[Invitations] ✅ Email sent via Instantly V2 from m.forbes@easymaggieforbesstrategies.com');
+        console.log('[Invitations] ✅ Email sent via Instantly V2 from support@growthmanagerpro.com');
         console.log('[Invitations] Instantly response:', instantlyResult);
         emailSent = true;
       } else {
