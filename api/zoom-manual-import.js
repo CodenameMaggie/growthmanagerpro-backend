@@ -276,27 +276,38 @@ async function findOrCreateCallRecord(supabase, callType, meetingId, topic, reco
     updated_at: new Date().toISOString()
   };
 
-  if (recordingUrl) updates.recording_url = recordingUrl;
-  if (transcript) updates.transcript = transcript;
-  // Duration field only exists in some tables, skip it for now
-
   switch (callType) {
     case 'prequal':
       tableName = 'pre_qualification_calls';
       updates.call_status = 'completed';
+      if (recordingUrl) updates.recording_url = recordingUrl;
+      if (transcript) updates.transcript = transcript;
       break;
     case 'podcast':
       tableName = 'podcast_interviews';
+      if (recordingUrl) updates.zoom_recording_url = recordingUrl;
       if (transcript) updates.transcript_text = transcript;
       updates.interview_status = 'completed';
       break;
     case 'discovery':
       tableName = 'discovery_calls';
+      // Discovery calls don't store recording URL, just transcript
+      if (transcript) updates.transcript = transcript;
       updates.status = 'Completed';
+      // Extract name from topic or use default
+      if (!updates.contact_name) {
+        updates.contact_name = topic.replace(/discovery|call|meeting|-|:/gi, '').trim() || 'Import from Zoom';
+      }
       break;
     case 'strategy':
       tableName = 'strategy_calls';
+      // Strategy calls don't store recording URL, just transcript
+      if (transcript) updates.transcript = transcript;
       updates.status = 'Completed';
+      // Extract name from topic or use default
+      if (!updates.contact_name) {
+        updates.contact_name = topic.replace(/strategy|sales|call|meeting|-|:/gi, '').trim() || 'Import from Zoom';
+      }
       break;
     default:
       throw new Error(`Unknown call type: ${callType}`);
