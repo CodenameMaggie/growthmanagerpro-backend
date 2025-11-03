@@ -311,6 +311,219 @@ async function handleSync(req, res) {
 }
 
 /**
+ * SYNC-ENGAGEMENT: Sync engagement data from Instantly for Growth Manager Pro campaigns ONLY
+ */
+async function handleSyncEngagement(req, res) {
+  try {
+    console.log('[Engagement Sync] Starting sync for Growth Manager Pro campaigns...');
+
+    // Only sync these 3 campaigns (Growth Manager Pro campaigns)
+    const campaignsToSync = [
+      { 
+        id: process.env.INSTANTLY_PODCAST_CAMPAIGN_ID, 
+        name: 'Podcast',
+        stage: 'podcast'
+      },
+      { 
+        id: process.env.INSTANTLY_DISCOVERY_CAMPAIGN_ID, 
+        name: 'Discovery',
+        stage: 'discovery'
+      },
+      { 
+        id: process.env.INSTANTLY_STRATEGY_CAMPAIGN_ID, 
+        name: 'Strategy',
+        stage: 'strategy'
+      }
+    ];
+
+    let totalProcessed = 0;
+    let totalUpdated = 0;
+    const errors = [];
+
+    for (const campaign of campaignsToSync) {
+      console.log(`[Engagement Sync] Processing ${campaign.name} campaign...`);
+
+      try {
+        // Get all leads from this campaign using Instantly API v2
+        const leadsResponse = await fetch(`https://api.instantly.ai/api/v2/leads/list`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${instantlyApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            campaign: campaign.id,
+            limit: 100 // Adjust if needed
+          })
+        });
+
+        if (!leadsResponse.ok) {
+          throw new Error(`Campaign ${campaign.name} API error: ${leadsResponse.status}`);
+        }
+
+        const leadsData = await leadsResponse.json();
+        const leads = leadsData.items || [];
+        
+        console.log(`[Engagement Sync] Found ${leads.length} leads in ${campaign.name} campaign`);
+
+        // Process each lead
+        for (const lead of leads) {
+          try {
+            // Check if contact exists in our database
+            const { data: contact } = await supabase
+              .from('contacts')
+              .select('id, email')
+              .eq('email', lead.email)
+              .single();
+
+            if (!contact) {
+              // Skip leads not in our Growth Manager Pro database
+              continue;
+            }
+
+            totalProcessed++;
+
+            // Get detailed engagement data for this lead
+            const emailStatsResponse = await fetch(
+              `https://api.instantly.ai/api/v2/emails?lead=${lead.email}&limit=10`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${instantlyApiKey}`
+                }
+              }
+            );
+
+            let engagementData = {
+              last_email_sent: null,
+              last_email_opened: null,
+              last_email_clicked: null,
+              email_open_count: 0,
+              email_click_count: 0,
+              has_replied: false,
+              reply_date: null,
+              email_status: 'sent',
+              sequence_step: null,
+              last_engagement_date: null
+            };
+
+            if (emailStatsResponse.ok) {
+              const emailStats = await emailStatsResponse.json();
+              const emails = emailStats.items || [];
+
+              // Analyze email engagement
+              emails.forEach(email => {
+                // Track sends
+                if (email.timestamp_sent) {
+                  const sentDate = new Date(email.timestamp_sent);
+                  if (!engagementData.last_email_sent || sentDate > new Date(engagementData.last_email_sent)) {
+                    engagementData.last_email_sent = email.timestamp_sent;
+                  }
+                }
+
+                // Track opens
+                if (email.timestamp_opened) {
+                  engagementData.email_open_count++;
+                  const openDate = new Date(email.timestamp_opened);
+                  if (!engagementData.last_email_opened || openDate > new Date(engagementData.last_email_opened)) {
+                    engagementData.last_email_opened = email.timestamp_opened;
+                    engagementData.last_engagement_date = email.timestamp_opened;
+                  }
+                }
+
+                // Track clicks
+                if (email.timestamp_clicked) {
+                  engagementData.email_click_count++;
+                  const clickDate = new Date(email.timestamp_clicked);
+                  if (!engagementData.last_email_clicked || clickDate > new Date(engagementData.last_email_clicked)) {
+                    engagementData.last_email_clicked = email.timestamp_clicked;
+                    engagementData.last_engagement_date = email.timestamp_clicked;
+                  }
+                }
+
+                // Track replies
+                if (email.timestamp_replied) {
+                  engagementData.has_replied = true;
+                  const replyDate = new Date(email.timestamp_replied);
+                  if (!engagementData.reply_date || replyDate > new Date(engagementData.reply_date)) {
+                    engagementData.reply_date = email.timestamp_replied;
+                    engagementData.last_engagement_date = email.timestamp_replied;
+                  }
+                }
+
+                // Track status
+                if (email.status) {
+                  engagementData.email_status = email.status; // delivered, bounced, etc.
+                }
+              });
+            }
+
+            // Add campaign info
+            engagementData.current_campaign = campaign.name;
+            engagementData.current_campaign_stage = campaign.stage;
+
+            // Update contact in database
+            const { error: updateError } = await supabase
+              .from('contacts')
+              .update({
+                last_email_sent: engagementData.last_email_sent,
+                last_email_opened: engagementData.last_email_opened,
+                last_email_clicked: engagementData.last_email_clicked,
+                email_open_count: engagementData.email_open_count,
+                email_click_count: engagementData.email_click_count,
+                has_replied: engagementData.has_replied,
+                reply_date: engagementData.reply_date,
+                email_status: engagementData.email_status,
+                last_engagement_date: engagementData.last_engagement_date,
+                current_campaign: engagementData.current_campaign,
+                engagement_synced_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', contact.id);
+
+            if (updateError) {
+              console.error(`[Engagement Sync] Error updating ${lead.email}:`, updateError);
+              errors.push({ email: lead.email, error: updateError.message });
+            } else {
+              totalUpdated++;
+              console.log(`[Engagement Sync] ✅ Updated ${lead.email}`);
+            }
+
+          } catch (leadError) {
+            console.error(`[Engagement Sync] Error processing lead:`, leadError);
+            errors.push({ email: lead.email, error: leadError.message });
+          }
+        }
+
+      } catch (campaignError) {
+        console.error(`[Engagement Sync] Error with ${campaign.name} campaign:`, campaignError);
+        errors.push({ campaign: campaign.name, error: campaignError.message });
+      }
+    }
+
+    console.log(`[Engagement Sync] Complete: ${totalUpdated}/${totalProcessed} contacts updated`);
+
+    return res.status(200).json({
+      success: true,
+      message: `Engagement data synced for ${totalUpdated} contacts`,
+      data: {
+        campaigns_synced: campaignsToSync.length,
+        contacts_processed: totalProcessed,
+        contacts_updated: totalUpdated,
+        errors: errors.length,
+        error_details: errors.slice(0, 5) // First 5 errors only
+      }
+    });
+
+  } catch (error) {
+    console.error('[Engagement Sync] Error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+/**
  * SEND-DISCOVERY: Send discovery call invitation (SENDER-AWARE)
  */
 async function handleSendDiscovery(req, res) {
@@ -759,7 +972,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({ 
       status: 'ok', 
       message: 'Instantly Manager endpoint is running',
-      actions: ['sync', 'send-podcast', 'send-discovery', 'send-strategy'],
+      actions: ['sync', 'sync-engagement', 'send-podcast', 'send-discovery', 'send-strategy'],
       timestamp: new Date().toISOString()
     });
   }
@@ -771,6 +984,9 @@ module.exports = async (req, res) => {
     switch (action) {
       case 'sync':
         return handleSync(req, res);
+      
+      case 'sync-engagement':
+        return handleSyncEngagement(req, res);
       
       case 'send-podcast':
         return handleSendPodcast(req, res);
@@ -785,7 +1001,7 @@ module.exports = async (req, res) => {
         return res.status(400).json({
           success: false,
           error: 'Invalid action',
-          message: 'Action must be one of: sync, send-podcast, send-discovery, send-strategy'
+          message: 'Action must be one of: sync, sync-engagement, send-podcast, send-discovery, send-strategy'
         });
     }
   }
