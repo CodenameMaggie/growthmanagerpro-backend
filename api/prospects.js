@@ -5,7 +5,6 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// ✅ File name: prospects.js (matches frontend API call)
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -19,17 +18,18 @@ module.exports = async (req, res) => {
     try {
       console.log('[Prospects API] Fetching contacts with pipeline stages...');
 
-      // Try to use the pipeline function first
+      // Try to use the pipeline function
       const { data: pipelineData, error: pipelineError } = await supabase.rpc('get_contacts_with_pipeline');
 
-      // If function exists and works, use it
+      // If function works, use it
       if (!pipelineError && pipelineData) {
-        console.log(`[Prospects API] ✅ Fetched ${pipelineData.length} contacts with pipeline stages`);
+        console.log(`[Prospects API] ✅ Fetched ${pipelineData.length} contacts with pipeline tracking`);
         
         return res.status(200).json({
           success: true,
           data: {
             prospects: pipelineData.map(contact => ({
+              // Core fields
               id: contact.id,
               name: contact.name,
               email: contact.email,
@@ -40,26 +40,29 @@ module.exports = async (req, res) => {
               notes: contact.notes,
               last_contact_date: contact.last_contact_date,
               created_at: contact.created_at,
-              instantly_campaign: contact.instantly_campaign || null,
-              zoomScheduled: contact.zoom_scheduled || false,
+              updated_at: contact.updated_at,
               
-              // ✨ NEW: Pipeline tracking fields
+              // Pipeline fields (from function)
               current_campaign: contact.current_campaign,
               pipeline_stage: contact.pipeline_stage,
               in_pipeline: contact.in_pipeline,
               
-              // ✨ NEW: Engagement tracking fields
-              last_email_sent: contact.last_email_sent,
-              last_email_opened: contact.last_email_opened,
-              last_email_clicked: contact.last_email_clicked,
-              email_open_count: contact.email_open_count || 0,
-              email_click_count: contact.email_click_count || 0,
-              has_replied: contact.has_replied || false,
-              reply_date: contact.reply_date,
-              email_status: contact.email_status,
-              last_engagement_date: contact.last_engagement_date,
-              engagement_synced_at: contact.engagement_synced_at,
-              assigned_sender_email: contact.assigned_sender_email
+              // Engagement fields (default values for now)
+              last_email_sent: null,
+              last_email_opened: null,
+              last_email_clicked: null,
+              email_open_count: 0,
+              email_click_count: 0,
+              has_replied: false,
+              reply_date: null,
+              email_status: 'unknown',
+              last_engagement_date: null,
+              engagement_synced_at: null,
+              assigned_sender_email: null,
+              
+              // Legacy fields
+              instantly_campaign: null,
+              zoomScheduled: false
             }))
           },
           timestamp: new Date().toISOString(),
@@ -67,8 +70,8 @@ module.exports = async (req, res) => {
         });
       }
 
-      // Fallback to simple query if function doesn't exist yet
-      console.log('[Prospects API] ⚠️ Pipeline function not found, using fallback...');
+      // Fallback to simple query
+      console.log('[Prospects API] ⚠️ Pipeline function not available, using fallback...');
       
       const { data, error } = await supabase
         .from('contacts')
@@ -93,31 +96,32 @@ module.exports = async (req, res) => {
             notes: contact.notes,
             last_contact_date: contact.last_contact_date,
             created_at: contact.created_at,
-            instantly_campaign: contact.instantly_campaign || null,
-            zoomScheduled: contact.zoom_scheduled || false,
+            updated_at: contact.updated_at,
             
-            // Fallback values for pipeline fields
-            current_campaign: contact.current_campaign || null,
+            // Fallback values
+            current_campaign: null,
             pipeline_stage: null,
             in_pipeline: false,
             
-            // Fallback values for engagement fields
-            last_email_sent: contact.last_email_sent || null,
-            last_email_opened: contact.last_email_opened || null,
-            last_email_clicked: contact.last_email_clicked || null,
-            email_open_count: contact.email_open_count || 0,
-            email_click_count: contact.email_click_count || 0,
-            has_replied: contact.has_replied || false,
-            reply_date: contact.reply_date || null,
-            email_status: contact.email_status || 'sent',
-            last_engagement_date: contact.last_engagement_date || null,
-            engagement_synced_at: contact.engagement_synced_at || null,
-            assigned_sender_email: contact.assigned_sender_email || null
+            last_email_sent: null,
+            last_email_opened: null,
+            last_email_clicked: null,
+            email_open_count: 0,
+            email_click_count: 0,
+            has_replied: false,
+            reply_date: null,
+            email_status: 'unknown',
+            last_engagement_date: null,
+            engagement_synced_at: null,
+            assigned_sender_email: null,
+            
+            instantly_campaign: null,
+            zoomScheduled: false
           }))
         },
         timestamp: new Date().toISOString(),
         using_pipeline_tracking: false,
-        note: 'Run create-pipeline-function.sql in Supabase to enable pipeline tracking'
+        note: 'Pipeline function not available - contacts shown without pipeline stages'
       });
 
     } catch (error) {
@@ -150,9 +154,7 @@ module.exports = async (req, res) => {
           status: status || 'new',
           source: source || 'manual',
           notes: notes || null,
-          last_contact_date: new Date().toISOString(),
-          instantly_campaign: null,
-          zoom_scheduled: false
+          last_contact_date: new Date().toISOString()
         }])
         .select();
 
@@ -160,20 +162,7 @@ module.exports = async (req, res) => {
 
       return res.status(201).json({
         success: true,
-        data: {
-          id: data[0].id,
-          name: data[0].name,
-          email: data[0].email,
-          company: data[0].company,
-          phone: data[0].phone,
-          status: data[0].status,
-          source: data[0].source,
-          notes: data[0].notes,
-          last_contact_date: data[0].last_contact_date,
-          created_at: data[0].created_at,
-          instantly_campaign: data[0].instantly_campaign,
-          zoomScheduled: data[0].zoom_scheduled
-        },
+        data: data[0],
         message: 'Contact created successfully'
       });
 
@@ -226,20 +215,7 @@ module.exports = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        data: {
-          id: data[0].id,
-          name: data[0].name,
-          email: data[0].email,
-          company: data[0].company,
-          phone: data[0].phone,
-          status: data[0].status,
-          source: data[0].source,
-          notes: data[0].notes,
-          last_contact_date: data[0].last_contact_date,
-          created_at: data[0].created_at,
-          instantly_campaign: data[0].instantly_campaign,
-          zoomScheduled: data[0].zoom_scheduled
-        },
+        data: data[0],
         message: 'Contact updated successfully'
       });
 
