@@ -95,8 +95,7 @@ module.exports = async (req, res) => {
       meetingId,
       recordingData.topic,
       recordingUrl,
-      transcript,
-      recordingData.duration
+      transcript
     );
 
     console.log(`[Manual Import] ✅ Call record: ${callRecord.id}`);
@@ -270,7 +269,7 @@ function determineCallType(topic) {
   return null;
 }
 
-async function findOrCreateCallRecord(supabase, callType, meetingId, topic, recordingUrl, transcript, duration) {
+async function findOrCreateCallRecord(supabase, callType, meetingId, topic, recordingUrl, transcript) {
   let tableName;
   let updates = {
     zoom_meeting_id: meetingId,
@@ -279,7 +278,7 @@ async function findOrCreateCallRecord(supabase, callType, meetingId, topic, reco
 
   if (recordingUrl) updates.recording_url = recordingUrl;
   if (transcript) updates.transcript = transcript;
-  if (duration) updates.meeting_duration = duration;
+  // Duration field only exists in some tables, skip it for now
 
   switch (callType) {
     case 'prequal':
