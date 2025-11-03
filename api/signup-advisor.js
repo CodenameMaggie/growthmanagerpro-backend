@@ -25,16 +25,18 @@ module.exports = async (req, res) => {
 
     try {
         const {
-            fullName,
-            email,
-            company,
-            phone,
-            specialization,
-            password,
-            hasClients,
-            clientEmails
-        } = req.body;
-
+    fullName,
+    email,
+    company,
+    phone,
+    specialization,
+    password,
+    hasClients,
+    clientEmails,
+    termsAccepted,      // ← ADD
+    privacyAccepted     // ← ADD
+} = req.body;
+        
         console.log('[Advisor Signup] Processing:', { email, company, hasClients, clientCount: clientEmails?.length || 0 });
 
         // Validate required fields
@@ -45,6 +47,13 @@ module.exports = async (req, res) => {
             });
         }
 
+        // Validate legal acceptance
+if (!termsAccepted || !privacyAccepted) {
+    return res.status(400).json({
+        success: false,
+        error: 'You must accept Terms & Conditions and Privacy Policy'
+    });
+}
         // Check if email already exists
         const { data: existingUser, error: checkError } = await supabase
             .from('users')
@@ -64,20 +73,22 @@ module.exports = async (req, res) => {
 
         // Create advisor user account
         const { data: newUser, error: insertError } = await supabase
-            .from('users')
-            .insert({
-                name: fullName,
-                email: email,
-                company: company,
-                phone: phone || null,
-                specialization: specialization || null,
-                password_hash: hashedPassword,
-                role: 'advisor',
-                status: 'pending', // Requires admin approval
-                created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
+    .from('users')
+    .insert({
+        name: fullName,
+        email: email,
+        company: company,
+        phone: phone || null,
+        specialization: specialization || null,
+        password_hash: hashedPassword,
+        role: 'advisor',
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        terms_accepted_at: new Date().toISOString(),    // ← ADD
+        privacy_accepted_at: new Date().toISOString()   // ← ADD
+    })
+    .select()
+    .single();
 
         if (insertError) {
             console.error('[Advisor Signup] Insert error:', insertError);
