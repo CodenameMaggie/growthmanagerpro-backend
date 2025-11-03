@@ -25,15 +25,17 @@ module.exports = async (req, res) => {
 
     try {
         const {
-            fullName,
-            email,
-            company,
-            phone,
-            password,
-            hasAdvisor,
-            advisorEmail,
-            permissionLevel
-        } = req.body;
+           fullName,
+    email,
+    company,
+    phone,
+    password,
+    hasAdvisor,
+    advisorEmail,
+    permissionLevel,
+    termsAccepted,      // ← ADD THIS
+    privacyAccepted     // ← ADD THIS
+} = req.body;
 
         console.log('[Client Signup] Processing:', { email, company, hasAdvisor });
 
@@ -45,6 +47,14 @@ module.exports = async (req, res) => {
             });
         }
 
+        // ← ADD THIS NEW VALIDATION HERE:
+// Validate legal acceptance
+if (!termsAccepted || !privacyAccepted) {
+    return res.status(400).json({
+        success: false,
+        error: 'You must accept Terms & Conditions and Privacy Policy'
+    });
+}
         // Check if email already exists
         const { data: existingContact, error: checkError } = await supabase
             .from('contacts')
@@ -63,20 +73,22 @@ module.exports = async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         // Create contact record
-        const { data: newContact, error: insertError } = await supabase
-            .from('contacts')
-            .insert({
-                name: fullName,
-                email: email,
-                company: company,
-                phone: phone || null,
-                password_hash: hashedPassword,
-                status: 'pending', // Will be activated when you approve them
-                source: 'client_signup',
-                created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
+       const { data: newContact, error: insertError } = await supabase
+    .from('contacts')
+    .insert({
+        name: fullName,
+        email: email,
+        company: company,
+        phone: phone || null,
+        password_hash: hashedPassword,
+        status: 'pending',
+        source: 'client_signup',
+        created_at: new Date().toISOString(),
+        terms_accepted_at: new Date().toISOString(),    // ← ADD THIS
+        privacy_accepted_at: new Date().toISOString()   // ← ADD THIS
+    })
+    .select()
+    .single();
 
         if (insertError) {
             console.error('[Client Signup] Insert error:', insertError);
