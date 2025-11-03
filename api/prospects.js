@@ -17,6 +17,59 @@ module.exports = async (req, res) => {
 
   if (req.method === 'GET') {
     try {
+      console.log('[Prospects API] Fetching contacts with pipeline stages...');
+
+      // Try to use the pipeline function first
+      const { data: pipelineData, error: pipelineError } = await supabase.rpc('get_contacts_with_pipeline');
+
+      // If function exists and works, use it
+      if (!pipelineError && pipelineData) {
+        console.log(`[Prospects API] ✅ Fetched ${pipelineData.length} contacts with pipeline stages`);
+        
+        return res.status(200).json({
+          success: true,
+          data: {
+            prospects: pipelineData.map(contact => ({
+              id: contact.id,
+              name: contact.name,
+              email: contact.email,
+              company: contact.company,
+              phone: contact.phone,
+              status: contact.status,
+              source: contact.source,
+              notes: contact.notes,
+              last_contact_date: contact.last_contact_date,
+              created_at: contact.created_at,
+              instantly_campaign: contact.instantly_campaign || null,
+              zoomScheduled: contact.zoom_scheduled || false,
+              
+              // ✨ NEW: Pipeline tracking fields
+              current_campaign: contact.current_campaign,
+              pipeline_stage: contact.pipeline_stage,
+              in_pipeline: contact.in_pipeline,
+              
+              // ✨ NEW: Engagement tracking fields
+              last_email_sent: contact.last_email_sent,
+              last_email_opened: contact.last_email_opened,
+              last_email_clicked: contact.last_email_clicked,
+              email_open_count: contact.email_open_count || 0,
+              email_click_count: contact.email_click_count || 0,
+              has_replied: contact.has_replied || false,
+              reply_date: contact.reply_date,
+              email_status: contact.email_status,
+              last_engagement_date: contact.last_engagement_date,
+              engagement_synced_at: contact.engagement_synced_at,
+              assigned_sender_email: contact.assigned_sender_email
+            }))
+          },
+          timestamp: new Date().toISOString(),
+          using_pipeline_tracking: true
+        });
+      }
+
+      // Fallback to simple query if function doesn't exist yet
+      console.log('[Prospects API] ⚠️ Pipeline function not found, using fallback...');
+      
       const { data, error } = await supabase
         .from('contacts')
         .select('*')
@@ -24,11 +77,11 @@ module.exports = async (req, res) => {
 
       if (error) throw error;
 
-      // ✅ Return EXACTLY what contacts.html expects
+      console.log(`[Prospects API] Fetched ${data.length} contacts (fallback mode)`);
+
       return res.status(200).json({
         success: true,
         data: {
-          // Frontend looks for: data.data?.prospects || data.prospects
           prospects: data.map(contact => ({
             id: contact.id,
             name: contact.name,
@@ -38,20 +91,37 @@ module.exports = async (req, res) => {
             status: contact.status,
             source: contact.source,
             notes: contact.notes,
-            // ✅ Match HTML line 981: last_contact_date or created_at
             last_contact_date: contact.last_contact_date,
             created_at: contact.created_at,
-            // ✅ Match HTML line 979: instantly_campaign (optional)
             instantly_campaign: contact.instantly_campaign || null,
-            // ✅ Match HTML line 938: zoomScheduled
-            zoomScheduled: contact.zoom_scheduled || false
+            zoomScheduled: contact.zoom_scheduled || false,
+            
+            // Fallback values for pipeline fields
+            current_campaign: contact.current_campaign || null,
+            pipeline_stage: null,
+            in_pipeline: false,
+            
+            // Fallback values for engagement fields
+            last_email_sent: contact.last_email_sent || null,
+            last_email_opened: contact.last_email_opened || null,
+            last_email_clicked: contact.last_email_clicked || null,
+            email_open_count: contact.email_open_count || 0,
+            email_click_count: contact.email_click_count || 0,
+            has_replied: contact.has_replied || false,
+            reply_date: contact.reply_date || null,
+            email_status: contact.email_status || 'sent',
+            last_engagement_date: contact.last_engagement_date || null,
+            engagement_synced_at: contact.engagement_synced_at || null,
+            assigned_sender_email: contact.assigned_sender_email || null
           }))
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        using_pipeline_tracking: false,
+        note: 'Run create-pipeline-function.sql in Supabase to enable pipeline tracking'
       });
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('[Prospects API] Error:', error);
       return res.status(500).json({
         success: false,
         error: error.message
@@ -88,7 +158,6 @@ module.exports = async (req, res) => {
 
       if (error) throw error;
 
-      // ✅ Return in same format as GET
       return res.status(201).json({
         success: true,
         data: {
@@ -155,7 +224,6 @@ module.exports = async (req, res) => {
         });
       }
 
-      // ✅ Return in same format as GET
       return res.status(200).json({
         success: true,
         data: {
