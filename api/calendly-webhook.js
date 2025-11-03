@@ -57,10 +57,10 @@ module.exports = async (req, res) => {
         });
       }
 
-      // Determine if this is a Discovery Call or Strategy/strategy Call
+      // Determine if this is a Discovery Call or Strategy Call
       const isDiscoveryCall = calendlyEventType.toLowerCase().includes('discovery');
-      const isstrategyCall = calendlyEventType.toLowerCase().includes('strategy') || 
-                          calendlyEventType.toLowerCase().includes('strategy');
+      const isStrategyCall = calendlyEventType.toLowerCase().includes('strategy') || 
+                          calendlyEventType.toLowerCase().includes('proposal');
 
       if (isDiscoveryCall) {
         // Update the most recent discovery call for this contact
@@ -86,10 +86,26 @@ module.exports = async (req, res) => {
           if (updateError) {
             console.error('Error updating discovery call:', updateError);
           } else {
-            console.log('Discovery call updated with Calendly booking');
+            console.log('✅ Discovery call updated with Calendly booking');
+            
+            // ⭐ NEW: Update contact stage to discovery
+            const { error: stageUpdateError } = await supabase
+              .from('contacts')
+              .update({ 
+                stage: 'discovery',
+                last_contact_date: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', contact.id);
+            
+            if (stageUpdateError) {
+              console.error('❌ Error updating contact stage:', stageUpdateError);
+            } else {
+              console.log('✅ Contact stage updated to: discovery');
+            }
           }
         }
-      } else if (isstrategyCall) {
+      } else if (isStrategyCall) {
         // Update the most recent strategy call for this contact
         const { data: strategyCall, error: strategyError } = await supabase
           .from('strategy_calls')
@@ -113,7 +129,23 @@ module.exports = async (req, res) => {
           if (updateError) {
             console.error('Error updating strategy call:', updateError);
           } else {
-            console.log('strategy call updated with Calendly booking');
+            console.log('✅ Strategy call updated with Calendly booking');
+            
+            // ⭐ NEW: Update contact stage to strategy
+            const { error: stageUpdateError } = await supabase
+              .from('contacts')
+              .update({ 
+                stage: 'strategy',
+                last_contact_date: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', contact.id);
+            
+            if (stageUpdateError) {
+              console.error('❌ Error updating contact stage:', stageUpdateError);
+            } else {
+              console.log('✅ Contact stage updated to: strategy');
+            }
           }
         }
       }
@@ -121,8 +153,9 @@ module.exports = async (req, res) => {
       return res.status(200).json({ 
         received: true,
         contact_found: true,
-        call_type: isDiscoveryCall ? 'discovery' : isstrategyCall ? 'strategy' : 'unknown',
-        message: 'Calendly booking processed successfully'
+        call_type: isDiscoveryCall ? 'discovery' : isStrategyCall ? 'strategy' : 'unknown',
+        stage_updated: true,
+        message: 'Calendly booking processed successfully - contact stage updated!'
       });
 
     } else if (eventType === 'invitee.canceled') {
