@@ -54,21 +54,21 @@ module.exports = async (req, res) => {
               in_pipeline: contact.in_pipeline,
               
               // Engagement fields (default values for now)
-              last_email_sent: null,
-              last_email_opened: null,
-              last_email_clicked: null,
-              email_open_count: 0,
-              email_click_count: 0,
-              has_replied: false,
-              reply_date: null,
-              email_status: 'unknown',
-              last_engagement_date: null,
-              engagement_synced_at: null,
-              assigned_sender_email: null,
+              last_email_sent: contact.last_email_sent,
+              last_email_opened: contact.last_email_opened,
+              last_email_clicked: contact.last_email_clicked,
+              email_open_count: contact.email_open_count || 0,
+              email_click_count: contact.email_click_count || 0,
+              has_replied: contact.has_replied || false,
+              reply_date: contact.reply_date,
+              email_status: contact.email_status,
+              last_engagement_date: contact.last_engagement_date,
+              engagement_synced_at: contact.engagement_synced_at,
+              assigned_sender_email: contact.assigned_sender_email,
               
               // Legacy fields
-              instantly_campaign: null,
-              zoomScheduled: false
+              instantly_campaign: contact.current_campaign, // Use current_campaign as alias
+              zoomScheduled: false // This one might not be in DB
             }))
           },
           timestamp: new Date().toISOString(),
