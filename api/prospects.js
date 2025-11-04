@@ -6,6 +6,7 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = async (req, res) => {
+  // CORS headers - set FIRST, before any other logic
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -13,6 +14,11 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
+
+  // Extract ID from URL if present (e.g., /api/prospects/123-456-789)
+  const urlParts = req.url.split('/');
+  const urlId = urlParts[urlParts.length - 1].split('?')[0]; // Remove query params
+  const prospectId = urlId !== 'prospects' ? urlId : null;
 
   if (req.method === 'GET') {
     try {
@@ -177,7 +183,8 @@ module.exports = async (req, res) => {
 
   if (req.method === 'PUT') {
     try {
-      const { id, name, email, company, phone, status, source, notes } = req.body;
+      // Get ID from URL or body
+      const id = prospectId || req.body.id;
 
       if (!id) {
         return res.status(400).json({
@@ -185,6 +192,8 @@ module.exports = async (req, res) => {
           error: 'Contact ID is required'
         });
       }
+
+      const { name, email, company, phone, status, source, notes } = req.body;
 
       const updateData = {
         last_contact_date: new Date().toISOString()
@@ -230,7 +239,8 @@ module.exports = async (req, res) => {
 
   if (req.method === 'DELETE') {
     try {
-      const { id } = req.body;
+      // Get ID from URL or body
+      const id = prospectId || req.body.id;
 
       if (!id) {
         return res.status(400).json({
