@@ -2,7 +2,6 @@ const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = async (req, res) => {
@@ -46,7 +45,6 @@ module.exports = async (req, res) => {
         success: true,
         data: data
       });
-
     } catch (error) {
       console.error('Error:', error);
       return res.status(500).json({
@@ -95,12 +93,73 @@ module.exports = async (req, res) => {
         });
       }
 
+      // ============================================================
+      // SMARTLEAD HANDOFF TRIGGER
+      // ============================================================
+      // If AI score >= 35, automatically hand off to Smartlead
+      if (ai_score !== undefined && ai_score >= 35) {
+        console.log(`[Pre-Qual] Contact scored ${ai_score} - Triggering Smartlead handoff`);
+        
+        // Get the contact_id associated with this pre-qual call
+        const { data: preQualCall, error: callError } = await supabase
+          .from('pre_qualification_calls')
+          .select('contact_id')
+          .eq('id', id)
+          .single();
+        
+        if (callError) {
+          console.error('[Pre-Qual] Error fetching call:', callError);
+        } else if (preQualCall && preQualCall.contact_id) {
+          // Trigger Smartlead handoff asynchronously (don't block response)
+          const handoffUrl = `${process.env.NEXT_PUBLIC_API_BASE || 'https://growthmanagerpro-backend.vercel.app'}/api/smartlead-handoff`;
+          
+          console.log(`[Pre-Qual] Calling handoff endpoint: ${handoffUrl}`);
+          
+          // Use fetch to call the handoff endpoint
+          try {
+            const handoffResponse = await fetch(handoffUrl, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json' 
+              },
+              body: JSON.stringify({
+                contactId: preQualCall.contact_id,
+                trigger: 'pre_qual_qualified',
+                preQualScore: ai_score
+              })
+            });
+            
+            if (!handoffResponse.ok) {
+              const errorText = await handoffResponse.text();
+              console.error(`[Pre-Qual] ❌ Handoff failed with status ${handoffResponse.status}:`, errorText);
+            } else {
+              const handoffResult = await handoffResponse.json();
+              
+              if (handoffResult.success) {
+                console.log('[Pre-Qual] ✅ Successfully handed off to Smartlead');
+                console.log('[Pre-Qual] Email:', handoffResult.email);
+                console.log('[Pre-Qual] Campaign ID:', handoffResult.campaign_id);
+              } else {
+                console.error('[Pre-Qual] ❌ Handoff failed:', handoffResult.error);
+              }
+            }
+          } catch (error) {
+            console.error('[Pre-Qual] ❌ Error triggering Smartlead handoff:', error.message);
+            // Don't fail the whole operation if handoff fails
+          }
+        } else {
+          console.warn('[Pre-Qual] No contact_id found for pre-qual call');
+        }
+      }
+      // ============================================================
+      // END SMARTLEAD HANDOFF TRIGGER
+      // ============================================================
+
       return res.status(200).json({
         success: true,
         data: data[0],
         message: 'Call updated successfully'
       });
-
     } catch (error) {
       console.error('Error:', error);
       return res.status(500).json({
@@ -123,7 +182,6 @@ module.exports = async (req, res) => {
         success: true,
         message: 'Call deleted successfully'
       });
-
     } catch (error) {
       console.error('Error:', error);
       return res.status(500).json({
