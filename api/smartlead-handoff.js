@@ -39,31 +39,40 @@ export default async function handler(req, res) {
 
     console.log('[Smartlead Handoff] Contact found:', contact.email);
 
-    // 2. Prepare lead data for Smartlead
+    // 2. Prepare lead data for Smartlead (using correct API format)
     const leadData = {
-      campaign_id: parseInt(process.env.SMARTLEAD_PODCAST_CAMPAIGN_ID),
       lead_list: [{
-        email: contact.email,
         first_name: contact.name?.split(' ')[0] || 'there',
         last_name: contact.name?.split(' ').slice(1).join(' ') || '',
-        company_name: contact.company || 'your company',
+        email: contact.email,
+        company_name: contact.company || '',
+        phone_number: contact.phone || '',
+        location: contact.location || '',
         custom_fields: {
-          pre_qual_score: preQualScore || 0,
-          company: contact.company || '',
+          pre_qual_score: preQualScore?.toString() || '0',
           industry: contact.industry || '',
           source: 'pre_qual_qualified',
-          handoff_date: new Date().toISOString()
+          handoff_date: new Date().toISOString().split('T')[0],
+          contact_id: contactId
         }
-      }]
+      }],
+      settings: {
+        ignore_global_block_list: false, // Respect block lists
+        ignore_unsubscribe_list: false   // Respect unsubscribes
+      }
     };
 
     console.log('[Smartlead Handoff] Sending to Smartlead:', JSON.stringify(leadData, null, 2));
 
-    // 3. Add lead to Smartlead campaign
-    const smartleadResponse = await fetch('https://server.smartlead.ai/api/v1/campaigns/add-lead', {
+    // 3. Add lead to Smartlead campaign (CORRECT API FORMAT)
+    const campaignId = process.env.SMARTLEAD_PODCAST_CAMPAIGN_ID;
+    const apiKey = process.env.SMARTLEAD_API_KEY;
+    
+    const smartleadUrl = `https://server.smartlead.ai/api/v1/campaigns/${campaignId}/leads?api_key=${apiKey}`;
+    
+    const smartleadResponse = await fetch(smartleadUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.SMARTLEAD_API_KEY}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(leadData)
@@ -86,21 +95,23 @@ export default async function handler(req, res) {
     }
 
     // 4. Update contact in Supabase
+    const updateData = {
+      stage: 'podcast_invited',
+      status: 'Podcast Invitation Sent',
+      current_campaign: 'Podcast Call-Auto Invite',
+      smartlead_campaign_id: campaignId,
+      smartlead_handoff_date: new Date().toISOString(),
+      notes: (contact.notes || '') + `\n\n[${new Date().toISOString()}] ✅ Handed to Smartlead - Podcast Invitation\nPre-qual Score: ${preQualScore}\nCampaign ID: ${campaignId}\nEmail: ${contact.email}`
+    };
+
     const { error: updateError } = await supabase
       .from('contacts')
-      .update({
-        managed_by: 'smartlead',
-        smartlead_lead_id: contact.email,
-        smartlead_campaign_id: process.env.SMARTLEAD_PODCAST_CAMPAIGN_ID,
-        handoff_date: new Date().toISOString(),
-        stage: 'podcast_invited',
-        status: 'Podcast Invitation Sent',
-        notes: (contact.notes || '') + `\n\n[${new Date().toISOString()}] ✅ Handed to Smartlead - Podcast Invitation\nPre-qual Score: ${preQualScore}\nCampaign ID: ${process.env.SMARTLEAD_PODCAST_CAMPAIGN_ID}`
-      })
+      .update(updateData)
       .eq('id', contactId);
 
     if (updateError) {
       console.error('[Smartlead Handoff] Error updating contact:', updateError);
+      // Don't fail the whole operation
     }
 
     console.log('[Smartlead Handoff] ✅ Success for:', contact.email);
@@ -109,7 +120,8 @@ export default async function handler(req, res) {
       success: true,
       message: 'Lead successfully handed to Smartlead Podcast Invitation campaign',
       email: contact.email,
-      campaign_id: process.env.SMARTLEAD_PODCAST_CAMPAIGN_ID
+      campaign_id: campaignId,
+      smartlead_response: smartleadData
     });
 
   } catch (error) {
