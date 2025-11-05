@@ -5,9 +5,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-const INSTANTLY_API_KEY = process.env.INSTANTLY_API_KEY;
-const INSTANTLY_CAMPAIGN_ID = process.env.INSTANTLY_INVITATION_CAMPAIGN_ID;
-
 module.exports = async (req, res) => {
   // ✅ CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -105,56 +102,21 @@ module.exports = async (req, res) => {
     
     console.log('[Invitations] ✅ Created:', { id: invitation.id, email, role });
 
-    // 📧 SEND EMAIL VIA INSTANTLY CAMPAIGN (V2 API - FIXED!)
-    // ✅ USING: support@maggieforbesstrategies.com as sender
-    let emailSent = false;
-    try {
-      const roleNames = {
-        admin: 'Administrator',
-        advisor: 'Advisor',
-        client: 'Client',
-        saas: 'SaaS Client'
-      };
+ // Generate signup link
+const signupLink = `https://www.growthmanagerpro.com/signup?token=${token}`;
 
-      console.log('[Invitations] Sending email via Instantly V2 API...');
-      console.log('[Invitations] Campaign ID:', INSTANTLY_CAMPAIGN_ID);
-      console.log('[Invitations] Sender Email: support@growthmanagerpro.com');
-      console.log('[Invitations] Recipient Email:', email);
+console.log('[Invitations] ✅ Created:', { id: invitation.id, email, role });
 
-      // ✅ Using Growth Manager Pro support email (proper branding!)
-      const instantlyResponse = await fetch('https://api.instantly.ai/api/v2/leads', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${INSTANTLY_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: email,
-          campaign: INSTANTLY_CAMPAIGN_ID,
-          from: 'support@growthmanagerpro.com',  // ✅ Professional Growth Manager Pro branding
-          first_name: email.split('@')[0],
-          variables: {
-            signup_link: signupLink,
-            role: roleNames[role]
-          }
-        })
-      });
-
-      const instantlyResult = await instantlyResponse.json();
-      
-      if (instantlyResponse.ok) {
-        console.log('[Invitations] ✅ Email sent via Instantly V2 from support@growthmanagerpro.com');
-        console.log('[Invitations] Instantly response:', instantlyResult);
-        emailSent = true;
-      } else {
-        console.error('[Invitations] Instantly error:', instantlyResult);
-        console.error('[Invitations] Response status:', instantlyResponse.status);
-      }
-
-    } catch (emailError) {
-      console.error('[Invitations] Email sending error:', emailError);
-      // Don't fail the invitation if email fails
-    }
+return res.status(201).json({
+  success: true,
+  invitation: {
+    id: invitation.id,
+    email: invitation.email,
+    role: invitation.role,
+    signupLink: signupLink,
+    expiresAt: invitation.expires_at
+  }
+});
 
     return res.status(201).json({
       success: true,
