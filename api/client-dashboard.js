@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  // GET - Load client dashboard
+  // GET - Load Client Dashboard
   if (req.method === 'GET') {
     try {
       const { clientId } = req.query;
@@ -200,7 +200,7 @@ module.exports = async (req, res) => {
       });
 
     } catch (error) {
-      console.error('Client dashboard error:', error);
+      console.error('Client Dashboard error:', error);
       return res.status(500).json({ success: false, error: error.message });
     }
   }
