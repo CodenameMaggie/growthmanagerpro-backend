@@ -161,7 +161,7 @@ module.exports = async (req, res) => {
       const resources = [
         {
           id: 1,
-          title: 'Leadership Intelligence System Guide',
+          title: 'Strategic Growth Architecture System Guide',
           type: 'PDF',
           url: '#',
           uploadedDate: new Date().toISOString()
