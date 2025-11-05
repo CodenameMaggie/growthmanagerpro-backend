@@ -440,25 +440,35 @@ async function handleAnalyzeDiscovery(req, res) {
           })
           .eq('id', discoveryCall.contacts.id);
 
-        // Send strategy invitation via instantly-manager
-        try {
-          const inviteUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}/api/instantly-manager`
-            : 'http://localhost:3000/api/instantly-manager';
+        
+      // Send strategy invitation via SmartLead
+try {
+  const handoffUrl = process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}/api/smartlead-handoff`
+    : 'http://localhost:3000/api/smartlead-handoff';
 
-          const emailResponse = await fetch(inviteUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              action: 'send-strategy',
-              strategy_call_id: strategyCall.id,
-              contact_name: contactName,
-              company: company,
-              recommended_tier: analysis.recommendation.tier,
-              systems: analysis.recommendation.specificSystems
-            })
-          });
+  const emailResponse = await fetch(handoffUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      contactId: strategyCall.id,
+      trigger: 'discovery_qualified',
+      campaignType: 'strategy'
+    })
+  });
 
+  const emailResult = await emailResponse.json();
+  
+  if (emailResult.success) {
+    emailSent = true;
+    console.log('[Discovery Analysis] ✅ Strategy invitation sent via SmartLead');
+  } else {
+    console.error('[Discovery Analysis] ❌ SmartLead failed:', emailResult.error);
+  }
+} catch (emailError) {
+  console.error('[Discovery Analysis] ❌ Email error:', emailError);
+}
+        
           if (emailResponse.ok) {
             emailSent = true;
             console.log('[Discovery Analysis] ✅ Strategy invitation sent');
@@ -900,18 +910,34 @@ Evidence: ${agreementEvidence}
 
 async function sendDiscoveryInvitation(discoveryCallId) {
   try {
-    const inviteUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}/api/instantly-manager`
-      : 'http://localhost:3000/api/instantly-manager';
+    const handoffUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}/api/smartlead-handoff`
+      : 'http://localhost:3000/api/smartlead-handoff';
 
-    const response = await fetch(inviteUrl, {
+    const response = await fetch(handoffUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'send-discovery',
-        discovery_call_id: discoveryCallId
+        contactId: discoveryCallId,
+        trigger: 'podcast_completed',
+        campaignType: 'discovery'
       })
     });
+
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('[Podcast Analysis] ✅ Discovery invitation sent via SmartLead');
+    } else {
+      console.error('[Podcast Analysis] ⚠️ SmartLead failed:', result.error);
+    }
+
+    return result;
+  } catch (error) {
+    console.error('[Podcast Analysis] Error sending invitation:', error);
+    return { success: false, error: error.message };
+  }
+}
 
     const result = await response.json();
     
