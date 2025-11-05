@@ -130,37 +130,39 @@ Score 35+ = Qualified for podcast interview`;
       throw updateError;
     }
 
-    // If qualified, send podcast invitation
-    if (analysis.qualified_for_podcast && analysis.qualification_score >= 35) {
-      console.log('[Pre-Qual Analysis] ✅ QUALIFIED! Sending podcast invitation...');
+ // If qualified, send podcast invitation via SmartLead
+if (analysis.qualified_for_podcast && analysis.qualification_score >= 35) {
+  console.log('[Pre-Qual Analysis] ✅ QUALIFIED! Triggering SmartLead...');
 
-      try {
-        // Call instantly-manager to send podcast invite
-        const inviteUrl = process.env.VERCEL_URL 
-          ? `https://${process.env.VERCEL_URL}/api/instantly-manager`
-          : 'http://localhost:3000/api/instantly-manager';
+  try {
+    const handoffUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}/api/smartlead-handoff`
+      : 'http://localhost:3000/api/smartlead-handoff';
 
-        const emailResponse = await fetch(inviteUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'send-podcast',
-            callId: callId
-          })
-        });
+    const handoffResponse = await fetch(handoffUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contactId: callId,
+        trigger: 'pre_qual_qualified',
+        campaignType: 'podcast',
+        preQualScore: analysis.qualification_score
+      })
+    });
 
-        if (emailResponse.ok) {
-          console.log('[Pre-Qual Analysis] ✅ Podcast invitation sent');
-        } else {
-          const errorText = await emailResponse.text();
-          console.error('[Pre-Qual Analysis] ❌ Email failed:', errorText);
-        }
-      } catch (emailError) {
-        console.error('[Pre-Qual Analysis] ❌ Error sending email:', emailError);
-      }
+    const handoffResult = await handoffResponse.json();
+    
+    if (handoffResult.success) {
+      console.log('[Pre-Qual Analysis] ✅ SmartLead handoff successful');
     } else {
-      console.log('[Pre-Qual Analysis] ❌ Not qualified (score:', analysis.qualification_score, ')');
+      console.error('[Pre-Qual Analysis] ❌ SmartLead failed:', handoffResult.error);
     }
+  } catch (emailError) {
+    console.error('[Pre-Qual Analysis] ❌ Error calling SmartLead:', emailError);
+  }
+} else {
+  console.log('[Pre-Qual Analysis] ❌ Not qualified (score:', analysis.qualification_score, ')');
+}
 
     return res.status(200).json({
       success: true,
