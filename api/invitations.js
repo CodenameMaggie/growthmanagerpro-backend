@@ -98,7 +98,7 @@ module.exports = async (req, res) => {
     }
 
     // Generate signup link
-    const signupLink = `https://www.growthmanagerpro.com/signup?token=${token}`;
+    const signupLink = `https://growthmanagerpro-backend.vercel.app/signup.html?token=${token}`;
     
     console.log('[Invitations] ✅ Created:', { id: invitation.id, email, role });
 
