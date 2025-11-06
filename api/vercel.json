@@ -2,6 +2,9 @@
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
     { "source": "/signup", "destination": "/signup.html" },
+    { "source": "/signup-client", "destination": "/signup-client.html" },
+    { "source": "/signup-advisor", "destination": "/signup-advisor.html" },
+    { "source": "/signup-invited", "destination": "/signup-invited.html" },
     { "source": "/dashboard", "destination": "/dashboard.html" },
     { "source": "/contacts", "destination": "/contacts.html" },
     { "source": "/prequal-calls", "destination": "/prequal-calls.html" },
