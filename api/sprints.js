@@ -315,7 +315,83 @@ module.exports = async (req, res) => {
         return res.status(500).json({ success: false, error: error.message });
       }
     }
+    // ==================== BLOCKERS ====================
+  if (type === 'blockers') {
+    
+    if (req.method === 'GET') {
+      try {
+        // Get tasks that are blocked
+        const { data: blockedTasks } = await supabase
+          .from('sprints')
+          .select('*')
+          .eq('task_status', 'blocked')
+          .order('created_at', { ascending: false });
 
+        // Get discovery calls that need follow-up
+        const { data: blockedCalls } = await supabase
+          .from('discovery_calls')
+          .select('*')
+          .eq('needs_follow_up', true)
+          .is('follow_up_completed', null)
+          .order('scheduled_date', { ascending: false })
+          .limit(5);
+
+        const blockers = [
+          ...(blockedTasks || []).map(task => ({
+            id: task.id,
+            title: task.task_name,
+            description: task.notes || 'Task is blocked',
+            created_at: task.created_at
+          })),
+          ...(blockedCalls || []).map(call => ({
+            id: `call-${call.id}`,
+            title: `Follow-up needed: ${call.prospect_name}`,
+            description: call.notes || 'Discovery call requires follow-up',
+            created_at: call.scheduled_date
+          }))
+        ];
+
+        return res.status(200).json({
+          success: true,
+          blockers: blockers
+        });
+      } catch (error) {
+        console.error('Error fetching blockers:', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    }
+  }
+
+  // ==================== FILES ====================
+  if (type === 'files') {
+    
+    if (req.method === 'GET') {
+      try {
+        // For now, return empty array - you can add file storage later
+        return res.status(200).json({
+          success: true,
+          files: []
+        });
+      } catch (error) {
+        console.error('Error fetching files:', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    }
+
+    if (req.method === 'POST') {
+      try {
+        // File upload endpoint - implement when ready
+        return res.status(501).json({
+          success: false,
+          error: 'File upload not yet implemented'
+        });
+        
+      } catch (error) {
+        console.error('Error uploading file:', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+    }
+  }
     if (req.method === 'PUT') {
       try {
         const { id, title, status, priority, due_date, assigned_to, notes } = req.body;
