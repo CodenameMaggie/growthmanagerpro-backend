@@ -174,7 +174,7 @@ module.exports = async (req, res) => {
             role: userRole,
             type: userRole === 'advisor' ? 'advisor' : 'admin',  // ✅ CORRECT
             permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
-            redirectTo: '/dashboard.html'
+            redirectTo: redirectTo
           },
           session: authData.session
         });
