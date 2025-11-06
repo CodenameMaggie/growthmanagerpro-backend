@@ -1,25 +1,4 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "/index.html" },
-    { "source": "/signup", "destination": "/signup.html" },
-    { "source": "/signup-client", "destination": "/signup-client.html" },
-    { "source": "/signup-advisor", "destination": "/signup-advisor.html" },
-    { "source": "/signup-invited", "destination": "/signup-invited.html" },
-    { "source": "/dashboard", "destination": "/dashboard.html" },
-    { "source": "/contacts", "destination": "/contacts.html" },
-    { "source": "/prequal-calls", "destination": "/prequal-calls.html" },
-    { "source": "/podcast-calls", "destination": "/podcast-calls.html" },
-    { "source": "/discovery-calls", "destination": "/discovery-calls.html" },
-    { "source": "/strategy-calls", "destination": "/strategy-calls.html" },
-    { "source": "/pipeline", "destination": "/pipeline.html" },
-    { "source": "/deals", "destination": "/deals.html" },
-    { "source": "/cash-flow", "destination": "/cash-flow.html" },
-    { "source": "/campaigns", "destination": "/campaigns.html" },
-    { "source": "/sprints", "destination": "/sprints.html" },
-    { "source": "/expense-tracker", "destination": "/expense-tracker.html" },
-    { "source": "/availability", "destination": "/availability.html" },
-    { "source": "/user-management", "destination": "/user-management.html" },
-    { "source": "/client-dashboard", "destination": "/client-dashboard.html" }
-  ],
-  "cleanUrls": true
+  "cleanUrls": true,
+  "trailingSlash": false
 }
