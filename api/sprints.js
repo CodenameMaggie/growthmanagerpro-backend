@@ -315,7 +315,9 @@ module.exports = async (req, res) => {
         return res.status(500).json({ success: false, error: error.message });
       }
     }
-    // ==================== BLOCKERS ====================
+   } // <-- End of tasks section
+
+  // ==================== BLOCKERS ====================
   if (type === 'blockers') {
     
     if (req.method === 'GET') {
@@ -367,7 +369,6 @@ module.exports = async (req, res) => {
     
     if (req.method === 'GET') {
       try {
-        // For now, return empty array - you can add file storage later
         return res.status(200).json({
           success: true,
           files: []
@@ -380,75 +381,12 @@ module.exports = async (req, res) => {
 
     if (req.method === 'POST') {
       try {
-        // File upload endpoint - implement when ready
         return res.status(501).json({
           success: false,
           error: 'File upload not yet implemented'
         });
-        
       } catch (error) {
         console.error('Error uploading file:', error);
-        return res.status(500).json({ success: false, error: error.message });
-      }
-    }
-  }
-    if (req.method === 'PUT') {
-      try {
-        const { id, title, status, priority, due_date, assigned_to, notes } = req.body;
-
-        if (!id) {
-          return res.status(400).json({ success: false, error: 'Task ID required' });
-        }
-
-        const updateData = {};
-        if (title) updateData.task_name = title;
-        if (status) updateData.task_status = status;
-        if (priority) updateData.priority = priority;
-        if (due_date !== undefined) updateData.due_date = due_date;
-        if (assigned_to !== undefined) updateData.assigned_to = assigned_to;
-        if (notes !== undefined) updateData.notes = notes;
-
-        const { data, error } = await supabase
-          .from('sprints')
-          .update(updateData)
-          .eq('id', id)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        return res.status(200).json({
-          success: true,
-          task: data,
-          message: 'Task updated'
-        });
-      } catch (error) {
-        console.error('Error updating task:', error);
-        return res.status(500).json({ success: false, error: error.message });
-      }
-    }
-
-    if (req.method === 'DELETE') {
-      try {
-        const { id } = req.body;
-
-        if (!id) {
-          return res.status(400).json({ success: false, error: 'Task ID required' });
-        }
-
-        const { error } = await supabase
-          .from('sprints')
-          .delete()
-          .eq('id', id);
-
-        if (error) throw error;
-
-        return res.status(200).json({
-          success: true,
-          message: 'Task deleted'
-        });
-      } catch (error) {
-        console.error('Error deleting task:', error);
         return res.status(500).json({ success: false, error: error.message });
       }
     }
