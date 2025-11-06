@@ -57,12 +57,13 @@ module.exports = async (req, res) => {
 
       const meetingId = payload.object.id;
       const topic = payload.object.topic;
+      const duration = payload.object.duration; // in minutes
       const recordingFiles = payload.object.recording_files;
 
-      console.log(`[Zoom Webhook] Recording completed: ${meetingId} - ${topic}`);
+        console.log(`[Zoom Webhook] Recording completed: ${meetingId} - ${topic} (${duration} min)`);
 
-      // Determine call type from meeting topic
-      const callType = determineCallType(topic);
+    // Determine call type from meeting duration and topic
+      const callType = determineCallType(topic, duration);
       
       if (!callType) {
         console.log(`[Zoom Webhook] Not a tracked call type: ${topic}`);
@@ -120,22 +121,31 @@ module.exports = async (req, res) => {
 // HELPER FUNCTIONS
 // ============================================
 
-function determineCallType(topic) {
+function determineCallType(topic, duration) {
   const topicLower = topic.toLowerCase();
   
-  if (topicLower.includes('pre-qual') || topicLower.includes('prequal') || topicLower.includes('pre qual') || topicLower.includes('pre-podcast')) {
-    return 'prequal';
-  }
-  if (topicLower.includes('podcast')) {
-    return 'podcast';
-  }
-  if (topicLower.includes('discovery')) {
-    return 'discovery';
-  }
-  if (topicLower.includes('strategy') || topicLower.includes('strategy call')) {
-    return 'strategy';  // ✅ USES "strategy" not "strategy"
+  // Check duration first for unique identifiers
+  if (duration === 15) {
+    return 'prequal';  // Only pre-qual calls are 15 min
   }
   
+  if (duration === 45) {
+    return 'discovery';  // Only discovery calls are 45 min
+  }
+  
+  // For 30-min calls, check topic
+  if (duration === 30) {
+    if (topicLower.includes('podcast')) {
+      return 'podcast';
+    }
+    if (topicLower.includes('strategy')) {
+      return 'strategy';
+    }
+    // Ignore other 30-min calls (Weekly Check In, etc.)
+    return null;
+  }
+  
+  // Unknown duration - ignore
   return null;
 }
 
