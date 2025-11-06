@@ -98,7 +98,7 @@ module.exports = async (req, res) => {
     }
 
     // Generate signup link
-    const signupLink = `https://www.growthmanagerpro.com/signup-client.html?token=${token}`;
+    const signupLink = `https://www.growthmanagerpro.com/accept-invitation`;
     console.log('[Invitations] ✅ Created:', { id: invitation.id, email, role });
 
     return res.status(201).json({
