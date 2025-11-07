@@ -68,7 +68,7 @@ if (!termsAccepted || !privacyAccepted) {
         }
 
         // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const plainPassword = password; // Store plain text to match login.js
 
         // Create advisor user account
         const { data: newUser, error: insertError } = await supabase
@@ -79,7 +79,7 @@ if (!termsAccepted || !privacyAccepted) {
         company: company,
         phone: phone || null,
         specialization: specialization || null,
-        password_hash: hashedPassword,
+        password_hash: plainPassword,
         role: 'advisor',
         status: 'pending',
         created_at: new Date().toISOString(),
