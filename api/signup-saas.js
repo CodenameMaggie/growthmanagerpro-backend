@@ -191,15 +191,14 @@ module.exports = async (req, res) => {
         console.log('[SaaS Signup] Tenant created:', newTenant.id);
 
         // Step 6: Hash password and create owner user
-        const hashedPassword = await bcrypt.hash(password, 10);
-
+        const plainPassword = password; // Store plain text to match login.js
         const { data: newUser, error: userError } = await supabase
             .from('users')
             .insert({
                 tenant_id: newTenant.id,
                 email: email,
                 full_name: ownerName,
-                password: hashedPassword,
+                password: plainPassword,
                 role: 'owner',
                 status: 'active',
                 created_at: new Date().toISOString()
