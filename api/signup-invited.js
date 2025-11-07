@@ -4,98 +4,36 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-module.exports = async (req, res) => {   
+module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Method not allowed' 
+    });
   }
 
   try {
-    const { 
-      token,           // For invited users
-      email,           // For direct signups
-      full_name, 
-      password,
-      company,
-      phone,
-      role,            // For direct signups
-      hasAdvisor,      // For client self-signup
-      advisorEmail,    // For client self-signup
-      permissionLevel  // For client self-signup
-    } = req.body;
+    const { token, full_name, password } = req.body;
 
-    console.log('[Signup] Processing:', { 
-      hasToken: !!token, 
-      email: email || 'from token',
-      role: role || 'from token'
-    });
+    console.log('[Signup Invited] Processing signup with token');
 
-    let finalEmail, finalRole, invitationId;
-
-    // ==================== FLOW 1: INVITED USER (has token) ====================
-    if (token) {
-      console.log('[Signup] Token-based signup');
-      
-      // Validate invitation token
-      const { data: invitation, error: invError } = await supabase
-        .from('invitations')
-        .select('*')
-        .eq('token', token)
-        .eq('status', 'pending')
-        .single();
-      
-      if (invError || !invitation) {
-        return res.status(404).json({
-          success: false,
-          error: 'Invalid or expired invitation'
-        });
-      }
-
-      // Check if expired
-      if (new Date(invitation.expires_at) < new Date()) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invitation has expired'
-        });
-      }
-
-      finalEmail = invitation.email;
-      finalRole = invitation.role;
-      invitationId = invitation.id;
-      
-      console.log('[Signup] Valid invitation:', { email: finalEmail, role: finalRole });
-    }
-    // ==================== FLOW 2: DIRECT SIGNUP (no token) ====================
-    else {
-      console.log('[Signup] Direct signup');
-      
-      if (!email || !role) {
-        return res.status(400).json({
-          success: false,
-          error: 'Email and role are required for direct signup'
-        });
-      }
-
-      finalEmail = email;
-      finalRole = role;
-    }
-
-    // ==================== VALIDATE REQUIRED FIELDS ====================
-    if (!full_name || !password) {
+    // Validate required fields
+    if (!token || !full_name || !password) {
       return res.status(400).json({
         success: false,
-        error: 'Full name and password are required'
+        error: 'Missing required fields: token, full_name, and password are required'
       });
     }
 
-    // Validate password strength
+    // Validate password length
     if (password.length < 8) {
       return res.status(400).json({
         success: false,
@@ -103,113 +41,107 @@ module.exports = async (req, res) => {
       });
     }
 
-    // ==================== CHECK IF USER ALREADY EXISTS ====================
-    const { data: existingUser } = await supabase
-      .from('users')
-      .select('id')
-      .eq('email', finalEmail)
+    // Find the invitation
+    const { data: invitation, error: invError } = await supabase
+      .from('invitations')
+      .select('*')
+      .eq('token', token)
+      .eq('status', 'pending')
       .single();
-    
-    if (existingUser) {
-      return res.status(400).json({
+
+    if (invError || !invitation) {
+      console.log('[Signup Invited] Invalid or expired token');
+      return res.status(404).json({
         success: false,
-        error: 'User with this email already exists'
+        error: 'Invalid or expired invitation token'
       });
     }
 
-    // ==================== HASH PASSWORD ====================
-    const plainPassword = password; // Plain text to match login.js
+    // Check if expired
+    const expiresAt = new Date(invitation.expires_at);
+    const now = new Date();
+    
+    if (expiresAt < now) {
+      console.log('[Signup Invited] Invitation expired');
+      return res.status(400).json({
+        success: false,
+        error: 'This invitation has expired'
+      });
+    }
 
-    // ==================== CREATE USER ====================
+    // Check if user already exists
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', invitation.email)
+      .single();
+
+    if (existingUser) {
+      console.log('[Signup Invited] User already exists');
+      return res.status(400).json({
+        success: false,
+        error: 'A user with this email already exists'
+      });
+    }
+
+    console.log('[Signup Invited] Creating user account');
+
+    // Create user - ONLY fields that exist in the database
     const { data: newUser, error: createError } = await supabase
       .from('users')
       .insert([{
-        email: finalEmail,
+        email: invitation.email,
         full_name: full_name,
-        password: plainPassword,
-        role: finalRole,
-        company: company || null,
-        phone: phone || null,
-        status: finalRole === 'advisor' ? 'pending' : 'active' // Advisors need approval
+        password: password, // Plain text to match login.js
+        role: invitation.role,
+        status: invitation.role === 'advisor' ? 'pending' : 'active',
+        user_type: invitation.role,
+        tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', // Default tenant
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }])
       .select()
       .single();
-    
+
     if (createError) {
-      console.error('[Signup] Error creating user:', createError);
-      throw createError;
+      console.error('[Signup Invited] Error creating user:', createError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create user account'
+      });
     }
 
-    console.log('[Signup] User created:', { id: newUser.id, email: newUser.email, role: newUser.role });
+    console.log('[Signup Invited] User created successfully:', newUser.id);
 
-    // ==================== MARK INVITATION AS ACCEPTED ====================
-    if (invitationId) {
-      await supabase
-        .from('invitations')
-        .update({ 
-          status: 'accepted', 
-          accepted_at: new Date().toISOString() 
-        })
-        .eq('id', invitationId);
-      
-      console.log('[Signup] Invitation marked as accepted');
-    }
+    // Mark invitation as accepted
+    await supabase
+      .from('invitations')
+      .update({
+        status: 'accepted',
+        accepted_at: new Date().toISOString()
+      })
+      .eq('id', invitation.id);
 
-    // ==================== HANDLE ADVISOR CONNECTION (for clients) ====================
-    let connectionMessage = '';
-    if (finalRole === 'client' && hasAdvisor && advisorEmail) {
-      try {
-        console.log('[Signup] Processing advisor connection...');
-        
-        const connectionResponse = await fetch(
-          `${process.env.API_BASE_URL || 'https://growthmanagerpro-backend.vercel.app'}/api/connection-request`, 
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              inviterEmail: finalEmail,
-              inviterType: 'client',
-              inviteeEmail: advisorEmail,
-              inviteeType: 'advisor',
-              permissionLevel: permissionLevel || 'collaborative',
-              inviterName: full_name
-            })
-          }
-        );
+    console.log('[Signup Invited] Invitation marked as accepted');
 
-        const connectionData = await connectionResponse.json();
-        
-        if (connectionData.success) {
-          connectionMessage = connectionData.status === 'auto_connected' 
-            ? 'Connected with your advisor!' 
-            : 'Connection request sent to your advisor!';
-          console.log('[Signup] Connection status:', connectionData.status);
-        }
-      } catch (connectionError) {
-        console.error('[Signup] Connection error:', connectionError);
-        connectionMessage = 'Note: Could not connect advisor at this time.';
-      }
-    }
-
-    // ==================== RETURN SUCCESS ====================
+    // Return success
     return res.status(201).json({
       success: true,
       user: {
         id: newUser.id,
         email: newUser.email,
-        name: newUser.full_name,
+        full_name: newUser.full_name,
         role: newUser.role,
         status: newUser.status
       },
-      token: 'demo-token-' + newUser.id, // Replace with real JWT in production
-      connectionMessage: connectionMessage || undefined,
+      token: 'demo-token-' + newUser.id,
       message: newUser.status === 'pending' 
         ? 'Application submitted. You will receive an email once approved.' 
-        : 'Account created successfully'
+        : 'Account created successfully!'
     });
-    
+
   } catch (error) {
-    console.error('[Signup] Server error:', error);
+    console.error('[Signup Invited] Server error:', error);
     return res.status(500).json({
       success: false,
       error: error.message || 'Internal server error'
