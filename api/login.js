@@ -1,9 +1,10 @@
-// /api/login.js - WORKING VERSION
+// /api/login.js - CORRECT ENV VARIABLES
 const { createClient } = require('@supabase/supabase-js');
 
+// Use the correct environment variable names
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
+  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
 );
 
 module.exports = async (req, res) => {
@@ -16,7 +17,7 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   try {
-    // Simple body parsing that works on Vercel
+    // Parse body
     let email, password;
     
     if (req.body && typeof req.body === 'object' && req.body.email) {
@@ -28,7 +29,7 @@ module.exports = async (req, res) => {
       password = parsed.password;
     }
 
-    console.log('LOGIN ATTEMPT:', email ? 'Email present' : 'NO EMAIL');
+    console.log('LOGIN ATTEMPT:', email || 'no email');
 
     if (!email || !password) {
       return res.status(400).json({ success: false, error: 'Email and password required' });
@@ -93,7 +94,7 @@ module.exports = async (req, res) => {
       }
     }
 
-    console.log('LOGIN FAILED - Invalid credentials');
+    console.log('LOGIN FAILED');
     return res.status(401).json({ success: false, error: 'Invalid email or password' });
 
   } catch (error) {
