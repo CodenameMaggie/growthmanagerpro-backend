@@ -1,14 +1,39 @@
-// /api/login.js - CORRECT ENV VARIABLES
+// /api/login.js - FINAL WORKING VERSION
 const { createClient } = require('@supabase/supabase-js');
 
-// Use the correct environment variable names
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
 );
 
+// Helper to parse request body - WORKS ON VERCEL
+const parseBody = async (req) => {
+  return new Promise((resolve) => {
+    if (req.body) {
+      // Body already parsed
+      if (typeof req.body === 'string') {
+        resolve(JSON.parse(req.body));
+      } else {
+        resolve(req.body);
+      }
+    } else {
+      // Read from stream
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk.toString();
+      });
+      req.on('end', () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch {
+          resolve({});
+        }
+      });
+    }
+  });
+};
+
 module.exports = async (req, res) => {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -17,36 +42,30 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   try {
-    // Parse body
-    let email, password;
-    
-    if (req.body && typeof req.body === 'object' && req.body.email) {
-      email = req.body.email;
-      password = req.body.password;
-    } else if (typeof req.body === 'string') {
-      const parsed = JSON.parse(req.body);
-      email = parsed.email;
-      password = parsed.password;
-    }
+    const body = await parseBody(req);
+    const email = body.email;
+    const password = body.password;
 
-    console.log('LOGIN ATTEMPT:', email || 'no email');
+    console.log('[Login] Request received for:', email || 'NO EMAIL');
 
     if (!email || !password) {
       return res.status(400).json({ success: false, error: 'Email and password required' });
     }
 
     // Check users table
-    const { data: user, error: userError } = await supabase
+    const { data: user } = await supabase
       .from('users')
       .select('*')
       .eq('email', email.toLowerCase())
       .single();
 
-    if (user && !userError && user.password === password) {
+    if (user && user.password === password) {
       const role = user.role || 'admin';
-      const redirectTo = (role === 'advisor' || role === 'consultant') ? '/advisor-dashboard.html' : '/dashboard.html';
+      const redirectTo = (role === 'advisor' || role === 'consultant') 
+        ? '/advisor-dashboard.html' 
+        : '/dashboard.html';
 
-      console.log('LOGIN SUCCESS:', email);
+      console.log('[Login] ✅ Success:', email);
 
       return res.status(200).json({
         success: true,
@@ -66,17 +85,16 @@ module.exports = async (req, res) => {
     }
 
     // Check contacts
-    const { data: contact, error: contactError } = await supabase
+    const { data: contact } = await supabase
       .from('contacts')
       .select('*')
       .eq('email', email.toLowerCase())
       .single();
 
-    if (contact && !contactError) {
-      const clientPassword = contact.password || contact.temp_password;
-      if (clientPassword === password) {
-        console.log('CLIENT LOGIN SUCCESS:', email);
-
+    if (contact) {
+      const pwd = contact.password || contact.temp_password;
+      if (pwd === password) {
+        console.log('[Login] ✅ Client success:', email);
         return res.status(200).json({
           success: true,
           data: {
@@ -94,11 +112,11 @@ module.exports = async (req, res) => {
       }
     }
 
-    console.log('LOGIN FAILED');
+    console.log('[Login] ❌ Failed:', email);
     return res.status(401).json({ success: false, error: 'Invalid email or password' });
 
   } catch (error) {
-    console.error('LOGIN ERROR:', error);
-    return res.status(500).json({ success: false, error: 'Server error: ' + error.message });
+    console.error('[Login] ERROR:', error);
+    return res.status(500).json({ success: false, error: 'Login error: ' + error.message });
   }
 };
