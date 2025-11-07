@@ -111,7 +111,7 @@ module.exports = async (req, res) => {
             email_confirm: true,
             user_metadata: {
               id: adminUser.id,
-              name: adminUser.name,
+              name: adminUser.full_name,
               role: userRole,
               type: userRole === 'advisor' ? 'advisor' : 'admin',
               permissions: PERMISSIONS[userRole] || PERMISSIONS.admin
@@ -171,14 +171,17 @@ module.exports = async (req, res) => {
         return res.status(200).json({
           success: true,
           data: {
-            id: adminUser.id,
-            name: adminUser.name,
-            email: adminUser.email,
-            role: userRole,
-            type: userRole === 'advisor' ? 'advisor' : 'admin',  // ✅ CORRECT
-            permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
-            redirectTo: redirectTo
-          },
+  id: adminUser.id,
+  name: adminUser.name || adminUser.full_name || adminUser.email?.split('@')[0],
+  full_name: adminUser.full_name || adminUser.name,
+  email: adminUser.email,
+  company_name: adminUser.company_name,
+  business_name: adminUser.business_name,
+  role: userRole,
+  type: userRole === 'advisor' ? 'advisor' : 'admin',
+  permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
+  redirectTo: redirectTo
+},
           session: authData.session
         });
       }
