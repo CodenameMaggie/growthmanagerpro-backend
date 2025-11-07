@@ -68,6 +68,18 @@ module.exports = async (req, res) => {
     });
   }
 
+  // Parse body if it's a string
+if (typeof req.body === 'string') {
+  try {
+    req.body = JSON.parse(req.body);
+  } catch (e) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid request body'
+    });
+  }
+
+const { email, password } = req.body;
   try {
     const { email, password } = req.body;
 
