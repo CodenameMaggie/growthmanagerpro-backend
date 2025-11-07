@@ -1,110 +1,287 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const PERMISSIONS = {
   admin: 'all',
   advisor: ['calls.view', 'deals.view', 'pipeline.view', 'campaigns.view'],
-  client: ['dashboard.view', 'contacts.view', 'calls.view', 'deals.view', 'pipeline.view', 'financials.view']
+  manager: [
+    'dashboard.view', 'dashboard.edit', 'contacts.view', 'contacts.create',
+    'contacts.edit', 'calls.view', 'calls.create', 'calls.edit',
+    'deals.view', 'deals.create', 'deals.edit', 'pipeline.view',
+    'pipeline.edit', 'campaigns.view', 'campaigns.create', 'campaigns.edit',
+    'financials.view', 'sprints.view', 'sprints.create', 'sprints.edit',
+    'users.view'
+  ],
+  client: [
+    'dashboard.view', 'contacts.view', 'calls.view', 'deals.view',
+    'pipeline.view', 'financials.view'
+  ]
 };
+
+// Helper to read body from stream
+async function getBody(req) {
+  if (req.body) {
+    return typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  }
+  
+  return new Promise((resolve) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(data));
+      } catch {
+        resolve({});
+      }
+    });
+  });
+}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Method not allowed' 
+    });
+  }
 
   try {
-    // Log everything for debugging
-    console.log('[Login] req.body type:', typeof req.body);
-    console.log('[Login] req.body:', JSON.stringify(req.body));
-    
-    let email, password;
-    
-    // Try different ways to get the data
-    if (req.body && typeof req.body === 'object') {
-      email = req.body.email;
-      password = req.body.password;
-      console.log('[Login] Got from object');
-    } else if (typeof req.body === 'string') {
-      const parsed = JSON.parse(req.body);
-      email = parsed.email;
-      password = parsed.password;
-      console.log('[Login] Got from string');
-    } else {
-      console.log('[Login] Body is neither object nor string!');
+    // Get request body (handles both parsed and stream)
+    const body = await getBody(req);
+    const { email, password } = body;
+
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
-        error: 'Cannot parse request body',
-        debug: { bodyType: typeof req.body, body: req.body }
+        error: 'Email and password are required'
       });
     }
 
-    console.log('[Login] Email:', email, 'Password:', password ? '***' : 'MISSING');
-
-    if (!email || !password) {
-      return res.status(400).json({ success: false, error: 'Email and password required' });
-    }
-
-    // Check users table
-    const { data: user } = await supabase
+    // First, check if this is an admin/advisor login (from users table)
+    const { data: adminUser, error: adminError } = await supabase
       .from('users')
-      .select('id, email, password, full_name, role, user_type')
+      .select('*')
       .eq('email', email.toLowerCase())
       .single();
 
-    if (user && user.password === password) {
-      const userRole = user.role || 'admin';
-      console.log('[Login] ✅ Success');
+    if (adminUser && !adminError) {
+      // Admin login - check password
+      if (adminUser.password === password) {
+        const userRole = adminUser.role || 'admin';
 
-      return res.status(200).json({
-        success: true,
-        data: {
-          id: user.id,
-          name: user.full_name || email.split('@')[0],
-          full_name: user.full_name,
-          email: user.email,
-          role: userRole,
-          type: userRole === 'advisor' ? 'advisor' : 'admin',
-          permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
-          redirectTo: userRole === 'advisor' ? '/advisor-dashboard.html' : '/dashboard.html'
+        // CREATE SUPABASE AUTH SESSION
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: email.toLowerCase(),
+          password: password
+        });
+
+        // If Supabase Auth user doesn't exist yet, create it
+        if (authError && authError.message.includes('Invalid login credentials')) {
+          const { data: newAuthData, error: signUpError } = await supabase.auth.admin.createUser({
+            email: email.toLowerCase(),
+            password: password,
+            email_confirm: true,
+            user_metadata: {
+              id: adminUser.id,
+              full_name: adminUser.full_name,
+              role: userRole,
+              type: 'admin',
+              permissions: PERMISSIONS[userRole] || PERMISSIONS.admin
+            }
+          });
+
+          if (signUpError) {
+            console.error('Error creating Supabase Auth user:', signUpError);
+            return res.status(500).json({
+              success: false,
+              error: 'Failed to create authentication session'
+            });
+          }
+
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: email.toLowerCase(),
+            password: password
+          });
+
+          if (signInError) {
+            console.error('Error signing in after creation:', signInError);
+            return res.status(500).json({
+              success: false,
+              error: 'Authentication failed'
+            });
+          }
+
+          return res.status(200).json({
+            success: true,
+            data: {
+              id: adminUser.id,
+              name: adminUser.full_name,
+              full_name: adminUser.full_name,
+              email: adminUser.email,
+              role: userRole,
+              type: 'admin',
+              permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
+              redirectTo: (userRole === 'advisor' || userRole === 'consultant') ? '/advisor-dashboard.html' : '/dashboard.html'
+            },
+            session: signInData.session
+          });
         }
-      });
+
+        if (authError) {
+          console.error('Auth error:', authError);
+          return res.status(500).json({
+            success: false,
+            error: 'Authentication failed'
+          });
+        }
+
+        // Successful admin login with Supabase session
+        return res.status(200).json({
+          success: true,
+          data: {
+            id: adminUser.id,
+            name: adminUser.full_name,
+            full_name: adminUser.full_name,
+            email: adminUser.email,
+            role: userRole,
+            type: 'admin',
+            permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
+            redirectTo: (userRole === 'advisor' || userRole === 'consultant') ? '/advisor-dashboard.html' : '/dashboard.html'
+          },
+          session: authData.session
+        });
+      }
     }
 
-    // Check contacts
-    const { data: contact } = await supabase
+    // If not admin, check if this is a client login
+    const { data: clientUser, error: clientError } = await supabase
       .from('contacts')
       .select('*')
       .eq('email', email.toLowerCase())
       .single();
 
-    if (contact && (contact.password === password || contact.temp_password === password)) {
-      console.log('[Login] ✅ Client success');
-      return res.status(200).json({
-        success: true,
-        data: {
-          id: contact.id,
-          name: contact.name || contact.company || email.split('@')[0],
-          full_name: contact.name,
-          email: contact.email,
-          role: 'client',
-          type: 'client',
-          permissions: PERMISSIONS.client,
-          redirectTo: '/client-dashboard.html'
-        }
+    if (clientError || !clientUser) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
       });
     }
 
-    return res.status(401).json({ success: false, error: 'Invalid email or password' });
+    const clientPassword = clientUser.password || clientUser.temp_password;
+
+    if (!clientPassword) {
+      return res.status(401).json({
+        success: false,
+        error: 'Account not fully set up. Please contact support.'
+      });
+    }
+
+    if (clientPassword !== password) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
+    }
+
+    // CREATE SUPABASE AUTH SESSION FOR CLIENT
+    const { data: clientAuthData, error: clientAuthError } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(),
+      password: password
+    });
+
+    if (clientAuthError && clientAuthError.message.includes('Invalid login credentials')) {
+      const { data: newClientAuth, error: clientSignUpError } = await supabase.auth.admin.createUser({
+        email: email.toLowerCase(),
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          id: clientUser.id,
+          name: clientUser.name,
+          company: clientUser.company,
+          role: 'client',
+          type: 'client',
+          permissions: PERMISSIONS.client
+        }
+      });
+
+      if (clientSignUpError) {
+        console.error('Error creating client Supabase Auth user:', clientSignUpError);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to create authentication session'
+        });
+      }
+
+      const { data: clientSignInData, error: clientSignInError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase(),
+        password: password
+      });
+
+      if (clientSignInError) {
+        console.error('Error signing in client:', clientSignInError);
+        return res.status(500).json({
+          success: false,
+          error: 'Authentication failed'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          id: clientUser.id,
+          name: clientUser.name,
+          full_name: clientUser.name,
+          email: clientUser.email,
+          company: clientUser.company,
+          role: 'client',
+          type: 'client',
+          permissions: PERMISSIONS.client,
+          redirectTo: '/client-portal.html'
+        },
+        session: clientSignInData.session
+      });
+    }
+
+    if (clientAuthError) {
+      console.error('Client auth error:', clientAuthError);
+      return res.status(500).json({
+        success: false,
+        error: 'Authentication failed'
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: clientUser.id,
+        name: clientUser.name,
+        full_name: clientUser.name,
+        email: clientUser.email,
+        company: clientUser.company,
+        role: 'client',
+        type: 'client',
+        permissions: PERMISSIONS.client,
+        redirectTo: '/client-portal.html'
+      },
+      session: clientAuthData.session
+    });
 
   } catch (error) {
-    console.error('[Login] ERROR:', error.message);
-    console.error('[Login] Stack:', error.stack);
-    return res.status(500).json({ success: false, error: error.message });
+    console.error('Login error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Login failed. Please try again.'
+    });
   }
 };
