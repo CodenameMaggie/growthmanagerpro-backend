@@ -1,13 +1,11 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// Use correct env var names
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const PERMISSIONS = {
   admin: 'all',
-  advisor: ['calls.view', 'deals.view', 'pipeline.view', 'campaigns.view'],
   manager: [
     'dashboard.view', 'dashboard.edit', 'contacts.view', 'contacts.create',
     'contacts.edit', 'calls.view', 'calls.create', 'calls.edit',
@@ -39,19 +37,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // ONLY CHANGE: Better body handling
-    let email, password;
-    
-    if (req.body) {
-      if (typeof req.body === 'object') {
-        email = req.body.email;
-        password = req.body.password;
-      } else if (typeof req.body === 'string') {
-        const parsed = JSON.parse(req.body);
-        email = parsed.email;
-        password = parsed.password;
-      }
-    }
+    const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -60,7 +46,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Check users table
+    // First, check if this is an admin/advisor login (from users table)
     const { data: adminUser, error: adminError } = await supabase
       .from('users')
       .select('*')
@@ -68,34 +54,97 @@ module.exports = async (req, res) => {
       .single();
 
     if (adminUser && !adminError) {
+      // Admin login - check password (you should hash passwords in production!)
       if (adminUser.password === password) {
         const userRole = adminUser.role || 'admin';
-        
-        let redirectTo = '/dashboard.html';
-        if (userRole === 'advisor' || userRole === 'consultant') {
-          redirectTo = '/advisor-dashboard.html';
+
+        // CREATE SUPABASE AUTH SESSION
+        // This is the key difference - we create a real Supabase session
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: email.toLowerCase(),
+          password: password
+        });
+
+        // If Supabase Auth user doesn't exist yet, create it
+        if (authError && authError.message.includes('Invalid login credentials')) {
+          // Create Supabase Auth user
+          const { data: newAuthData, error: signUpError } = await supabase.auth.admin.createUser({
+            email: email.toLowerCase(),
+            password: password,
+            email_confirm: true,
+            user_metadata: {
+              id: adminUser.id,
+              name: adminUser.name,
+              role: userRole,
+              type: 'admin',
+              permissions: PERMISSIONS[userRole] || PERMISSIONS.admin
+            }
+          });
+
+          if (signUpError) {
+            console.error('Error creating Supabase Auth user:', signUpError);
+            return res.status(500).json({
+              success: false,
+              error: 'Failed to create authentication session'
+            });
+          }
+
+          // Now sign them in
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: email.toLowerCase(),
+            password: password
+          });
+
+          if (signInError) {
+            console.error('Error signing in after creation:', signInError);
+            return res.status(500).json({
+              success: false,
+              error: 'Authentication failed'
+            });
+          }
+
+          // Return user data with session
+          return res.status(200).json({
+            success: true,
+            data: {
+              id: adminUser.id,
+              name: adminUser.name,
+              email: adminUser.email,
+              role: userRole,
+              type: 'admin',
+              permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
+              redirectTo: '/dashboard.html'
+            },
+            session: signInData.session
+          });
         }
 
-        // ONLY CHANGE: Added full_name and other fields
+        if (authError) {
+          console.error('Auth error:', authError);
+          return res.status(500).json({
+            success: false,
+            error: 'Authentication failed'
+          });
+        }
+
+        // Successful admin login with Supabase session
         return res.status(200).json({
           success: true,
           data: {
             id: adminUser.id,
-            name: adminUser.full_name || adminUser.name || email.split('@')[0],
-            full_name: adminUser.full_name || adminUser.name,
+            name: adminUser.name,
             email: adminUser.email,
-            company_name: adminUser.company_name,
-            business_name: adminUser.business_name,
             role: userRole,
-            type: userRole === 'advisor' ? 'advisor' : 'admin',
+            type: 'admin',
             permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
-            redirectTo: redirectTo
-          }
+            redirectTo: '/dashboard.html'
+          },
+          session: authData.session
         });
       }
     }
 
-    // Check contacts table
+    // If not admin, check if this is a client login (from contacts table)
     const { data: clientUser, error: clientError } = await supabase
       .from('contacts')
       .select('*')
@@ -109,6 +158,7 @@ module.exports = async (req, res) => {
       });
     }
 
+    // For clients: Check if they have a password field
     const clientPassword = clientUser.password || clientUser.temp_password;
 
     if (!clientPassword) {
@@ -125,19 +175,88 @@ module.exports = async (req, res) => {
       });
     }
 
+    // CREATE SUPABASE AUTH SESSION FOR CLIENT
+    const { data: clientAuthData, error: clientAuthError } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(),
+      password: password
+    });
+
+    // If client doesn't have Supabase Auth account, create it
+    if (clientAuthError && clientAuthError.message.includes('Invalid login credentials')) {
+      const { data: newClientAuth, error: clientSignUpError } = await supabase.auth.admin.createUser({
+        email: email.toLowerCase(),
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          id: clientUser.id,
+          name: clientUser.name,
+          company: clientUser.company,
+          role: 'client',
+          type: 'client',
+          permissions: PERMISSIONS.client
+        }
+      });
+
+      if (clientSignUpError) {
+        console.error('Error creating client Supabase Auth user:', clientSignUpError);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to create authentication session'
+        });
+      }
+
+      // Sign them in
+      const { data: clientSignInData, error: clientSignInError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase(),
+        password: password
+      });
+
+      if (clientSignInError) {
+        console.error('Error signing in client:', clientSignInError);
+        return res.status(500).json({
+          success: false,
+          error: 'Authentication failed'
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          id: clientUser.id,
+          name: clientUser.name,
+          email: clientUser.email,
+          company: clientUser.company,
+          role: 'client',
+          type: 'client',
+          permissions: PERMISSIONS.client,
+          redirectTo: '/client-portal.html'
+        },
+        session: clientSignInData.session
+      });
+    }
+
+    if (clientAuthError) {
+      console.error('Client auth error:', clientAuthError);
+      return res.status(500).json({
+        success: false,
+        error: 'Authentication failed'
+      });
+    }
+
+    // Successful client login with Supabase session
     return res.status(200).json({
       success: true,
       data: {
         id: clientUser.id,
-        name: clientUser.name || clientUser.company || email.split('@')[0],
-        full_name: clientUser.name,
+        name: clientUser.name,
         email: clientUser.email,
         company: clientUser.company,
         role: 'client',
         type: 'client',
         permissions: PERMISSIONS.client,
-        redirectTo: '/client-dashboard.html'
-      }
+        redirectTo: '/client-portal.html'
+      },
+      session: clientAuthData.session
     });
 
   } catch (error) {
