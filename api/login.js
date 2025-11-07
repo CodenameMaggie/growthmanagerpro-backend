@@ -37,7 +37,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { email, password } = req.body;
+    // ⭐ ONLY NEW CODE: Parse body if needed
+    let body = req.body;
+    if (typeof body === 'string') {
+      body = JSON.parse(body);
+    }
 
     if (!email || !password) {
       return res.status(400).json({
