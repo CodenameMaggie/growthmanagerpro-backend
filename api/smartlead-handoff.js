@@ -66,7 +66,7 @@ export default async function handler(req, res) {
     if (campaignType === 'platform_invite') {
       const leadData = {
         lead_list: [{
-          first_name: inviteEmail.split('@')[0] || 'there',
+          first_name: 'there',
           last_name: '',
           email: inviteEmail,
           custom_fields: {
