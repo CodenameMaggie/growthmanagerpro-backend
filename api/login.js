@@ -1,11 +1,12 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL 
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const PERMISSIONS = {
   admin: 'all',
+  advisor: ['calls.view', 'deals.view', 'pipeline.view', 'campaigns.view'],
   manager: [
     'dashboard.view', 'dashboard.edit', 'contacts.view', 'contacts.create',
     'contacts.edit', 'calls.view', 'calls.create', 'calls.edit',
@@ -20,7 +21,7 @@ const PERMISSIONS = {
   ]
 };
 
-// Read request body properly
+// Read request body
 async function getBody(req) {
   if (req.body) {
     return typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
@@ -55,55 +56,59 @@ module.exports = async (req, res) => {
     console.log('[Login] Attempt:', email);
 
     if (!email || !password) {
-      return res.status(400).json({ success: false, error: 'Email and password are required' });
+      return res.status(400).json({ success: false, error: 'Email and password required' });
     }
 
-    // Check users table
-    const { data: adminUser, error: adminError } = await supabase
+    // Check users table - ONLY select columns that exist!
+    const { data: user, error: userError } = await supabase
       .from('users')
-      .select('*')
+      .select('id, email, password, full_name, role, user_type')
       .eq('email', email.toLowerCase())
       .single();
 
-    if (adminUser && !adminError && adminUser.password === password) {
-      const userRole = adminUser.role || 'admin';
-      
-      console.log('[Login] ✅ Success:', email);
+    if (user && !userError && user.password === password) {
+      const userRole = user.role || 'admin';
+      const redirectTo = (userRole === 'advisor' || userRole === 'consultant') 
+        ? '/advisor-dashboard.html' 
+        : '/dashboard.html';
 
+      console.log('[Login] ✅ Success:', email, 'Role:', userRole);
+
+      // Return data matching YOUR database structure
       return res.status(200).json({
         success: true,
         data: {
-          id: adminUser.id,
-          name: adminUser.full_name || adminUser.name || email.split('@')[0],
-          full_name: adminUser.full_name || adminUser.name,
-          email: adminUser.email,
+          id: user.id,
+          name: user.full_name || email.split('@')[0],  // Use full_name, fallback to email
+          full_name: user.full_name,  // This is what your dashboards expect
+          email: user.email,
           role: userRole,
           type: userRole === 'advisor' ? 'advisor' : 'admin',
           permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
-          redirectTo: userRole === 'advisor' ? '/advisor-dashboard.html' : '/dashboard.html'
+          redirectTo: redirectTo
         }
       });
     }
 
-    // Check contacts
-    const { data: clientUser, error: clientError } = await supabase
+    // Check contacts table
+    const { data: contact, error: contactError } = await supabase
       .from('contacts')
       .select('*')
       .eq('email', email.toLowerCase())
       .single();
 
-    if (clientUser && !clientError) {
-      const clientPassword = clientUser.password || clientUser.temp_password;
+    if (contact && !contactError) {
+      const clientPassword = contact.password || contact.temp_password;
       if (clientPassword === password) {
         console.log('[Login] ✅ Client success:', email);
         return res.status(200).json({
           success: true,
           data: {
-            id: clientUser.id,
-            name: clientUser.name || clientUser.company || email.split('@')[0],
-            full_name: clientUser.name,
-            email: clientUser.email,
-            company: clientUser.company,
+            id: contact.id,
+            name: contact.name || contact.company || email.split('@')[0],
+            full_name: contact.name,
+            email: contact.email,
+            company: contact.company,
             role: 'client',
             type: 'client',
             permissions: PERMISSIONS.client,
@@ -113,11 +118,11 @@ module.exports = async (req, res) => {
       }
     }
 
-    console.log('[Login] ❌ Failed:', email);
+    console.log('[Login] ❌ Invalid credentials');
     return res.status(401).json({ success: false, error: 'Invalid email or password' });
 
   } catch (error) {
     console.error('[Login] ERROR:', error);
-    return res.status(500).json({ success: false, error: 'Login error: ' + error.message });
+    return res.status(500).json({ success: false, error: 'Login failed: ' + error.message });
   }
 };
