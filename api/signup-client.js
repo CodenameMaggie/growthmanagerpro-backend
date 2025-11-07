@@ -69,7 +69,7 @@ if (!termsAccepted || !privacyAccepted) {
         }
 
         // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const plainPassword = password; // Store plain text to match login.js
 
         // Create contact record
        const { data: newContact, error: insertError } = await supabase
@@ -79,7 +79,7 @@ if (!termsAccepted || !privacyAccepted) {
         email: email,
         company: company,
         phone: phone || null,
-        password_hash: hashedPassword,
+        password_hash: plainPassword,
         status: 'pending',
         source: 'client_signup',
         created_at: new Date().toISOString(),
