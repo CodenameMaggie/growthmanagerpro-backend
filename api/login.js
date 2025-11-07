@@ -4,6 +4,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Permission definitions matching permissions.js
 const PERMISSIONS = {
   admin: 'all',
   advisor: ['calls.view', 'deals.view', 'pipeline.view', 'campaigns.view'],
@@ -20,25 +21,6 @@ const PERMISSIONS = {
     'pipeline.view', 'financials.view'
   ]
 };
-
-// Helper to read body from stream
-async function getBody(req) {
-  if (req.body) {
-    return typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-  }
-  
-  return new Promise((resolve) => {
-    let data = '';
-    req.on('data', chunk => { data += chunk.toString(); });
-    req.on('end', () => {
-      try {
-        resolve(JSON.parse(data));
-      } catch {
-        resolve({});
-      }
-    });
-  });
-}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -57,8 +39,23 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Get request body (handles both parsed and stream)
-    const body = await getBody(req);
+    // Parse request body (Vercel sometimes doesn't auto-parse)
+    let body = req.body;
+    if (!body && req.method === 'POST') {
+      // Read from stream if body not parsed
+      body = await new Promise((resolve) => {
+        let data = '';
+        req.on('data', chunk => { data += chunk.toString(); });
+        req.on('end', () => {
+          try { resolve(JSON.parse(data)); } 
+          catch { resolve({}); }
+        });
+      });
+    }
+    if (typeof body === 'string') {
+      body = JSON.parse(body);
+    }
+    
     const { email, password } = body;
 
     if (!email || !password) {
@@ -76,11 +73,12 @@ module.exports = async (req, res) => {
       .single();
 
     if (adminUser && !adminError) {
-      // Admin login - check password
+      // Admin login - check password (you should hash passwords in production!)
       if (adminUser.password === password) {
         const userRole = adminUser.role || 'admin';
 
         // CREATE SUPABASE AUTH SESSION
+        // This is the key difference - we create a real Supabase session
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: email.toLowerCase(),
           password: password
@@ -88,13 +86,14 @@ module.exports = async (req, res) => {
 
         // If Supabase Auth user doesn't exist yet, create it
         if (authError && authError.message.includes('Invalid login credentials')) {
+          // Create Supabase Auth user
           const { data: newAuthData, error: signUpError } = await supabase.auth.admin.createUser({
             email: email.toLowerCase(),
             password: password,
             email_confirm: true,
             user_metadata: {
               id: adminUser.id,
-              full_name: adminUser.full_name,
+              name: adminUser.full_name,
               role: userRole,
               type: 'admin',
               permissions: PERMISSIONS[userRole] || PERMISSIONS.admin
@@ -109,6 +108,7 @@ module.exports = async (req, res) => {
             });
           }
 
+          // Now sign them in
           const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
             email: email.toLowerCase(),
             password: password
@@ -122,6 +122,7 @@ module.exports = async (req, res) => {
             });
           }
 
+          // Return user data with session
           return res.status(200).json({
             success: true,
             data: {
@@ -130,7 +131,7 @@ module.exports = async (req, res) => {
               full_name: adminUser.full_name,
               email: adminUser.email,
               role: userRole,
-              type: 'admin',
+              type: (userRole === 'advisor' || userRole === 'consultant') ? 'advisor' : 'admin',
               permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
               redirectTo: (userRole === 'advisor' || userRole === 'consultant') ? '/advisor-dashboard.html' : '/dashboard.html'
             },
@@ -155,7 +156,7 @@ module.exports = async (req, res) => {
             full_name: adminUser.full_name,
             email: adminUser.email,
             role: userRole,
-            type: 'admin',
+            type: (userRole === 'advisor' || userRole === 'consultant') ? 'advisor' : 'admin',
             permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
             redirectTo: (userRole === 'advisor' || userRole === 'consultant') ? '/advisor-dashboard.html' : '/dashboard.html'
           },
@@ -164,7 +165,7 @@ module.exports = async (req, res) => {
       }
     }
 
-    // If not admin, check if this is a client login
+    // If not admin, check if this is a client login (from contacts table)
     const { data: clientUser, error: clientError } = await supabase
       .from('contacts')
       .select('*')
@@ -178,6 +179,7 @@ module.exports = async (req, res) => {
       });
     }
 
+    // For clients: Check if they have a password field
     const clientPassword = clientUser.password || clientUser.temp_password;
 
     if (!clientPassword) {
@@ -200,6 +202,7 @@ module.exports = async (req, res) => {
       password: password
     });
 
+    // If client doesn't have Supabase Auth account, create it
     if (clientAuthError && clientAuthError.message.includes('Invalid login credentials')) {
       const { data: newClientAuth, error: clientSignUpError } = await supabase.auth.admin.createUser({
         email: email.toLowerCase(),
@@ -223,6 +226,7 @@ module.exports = async (req, res) => {
         });
       }
 
+      // Sign them in
       const { data: clientSignInData, error: clientSignInError } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase(),
         password: password
@@ -261,6 +265,7 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Successful client login with Supabase session
     return res.status(200).json({
       success: true,
       data: {
