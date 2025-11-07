@@ -8,11 +8,11 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
+  
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-
+  
   if (req.method !== 'POST') {
     return res.status(405).json({ 
       success: false, 
@@ -21,8 +21,8 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const { email, role, invited_by } = req.body; // ✅ Accept invited_by
-
+    const { email, role, invited_by } = req.body;
+    
     // Validate required fields
     if (!email || !role) {
       return res.status(400).json({
@@ -30,7 +30,7 @@ module.exports = async (req, res) => {
         error: 'Email and role are required'
       });
     }
-
+    
     // Validate email format
     if (!email.includes('@')) {
       return res.status(400).json({
@@ -38,7 +38,7 @@ module.exports = async (req, res) => {
         error: 'Invalid email format'
       });
     }
-
+    
     // Validate role
     const validRoles = ['admin', 'advisor', 'client', 'saas'];
     if (!validRoles.includes(role)) {
@@ -49,21 +49,21 @@ module.exports = async (req, res) => {
     }
 
     console.log('[Invitations] Creating invitation for:', email, 'as', role);
-
+    
     // Check if user already exists
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
       .eq('email', email)
       .single();
-
+    
     if (existingUser) {
       return res.status(400).json({
         success: false,
         error: 'A user with this email already exists'
       });
     }
-
+    
     // Check if there's already a pending invitation
     const { data: existingInvitation } = await supabase
       .from('invitations')
@@ -71,21 +71,21 @@ module.exports = async (req, res) => {
       .eq('email', email)
       .eq('status', 'pending')
       .single();
-
+    
     if (existingInvitation) {
       return res.status(400).json({
         success: false,
         error: 'There is already a pending invitation for this email'
       });
     }
-
+    
     // Generate unique token
     const token = require('crypto').randomBytes(32).toString('hex');
-
+    
     // Calculate expiration date (7 days from now)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
-
+    
     // Create invitation with invited_by field
     const { data: invitation, error } = await supabase
       .from('invitations')
@@ -94,13 +94,13 @@ module.exports = async (req, res) => {
         role: role,
         token: token,
         status: 'pending',
-        invited_by: invited_by || null, // ✅ Store who invited this user
+        invited_by: invited_by || null,
         expires_at: expiresAt.toISOString(),
         created_at: new Date().toISOString()
       }])
       .select()
       .single();
-
+    
     if (error) {
       console.error('[Invitations] Error creating invitation:', error);
       return res.status(500).json({
@@ -110,9 +110,41 @@ module.exports = async (req, res) => {
     }
 
     console.log('[Invitations] Invitation created successfully:', invitation.id);
-
+    
     // Generate signup link
-    const signupLink = `https://www.growthmanagerpro.com/accept-invitation`;
+    const signupLink = `https://www.growthmanagerpro.com/accept-invitation?token=${token}`;
+    
+    // ==================== NEW: SEND TO SMARTLEAD ====================
+    console.log('[Invitations] Sending to SmartLead...');
+    
+    try {
+      const smartleadHandoffUrl = `${process.env.API_BASE_URL || 'https://growthmanagerpro-backend.vercel.app'}/api/smartlead-handoff`;
+      
+      const smartleadResponse = await fetch(smartleadHandoffUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignType: 'platform_invite',
+          trigger: 'user_invitation',
+          inviteEmail: email,
+          inviteRole: role,
+          signupLink: signupLink
+        })
+      });
+
+      const smartleadResult = await smartleadResponse.json();
+      
+      if (smartleadResult.success) {
+        console.log('[Invitations] ✅ SmartLead invitation sent:', email);
+      } else {
+        console.error('[Invitations] ⚠️ SmartLead failed:', smartleadResult.error);
+        // Don't fail the whole invitation if SmartLead fails
+      }
+    } catch (smartleadError) {
+      console.error('[Invitations] ⚠️ SmartLead error:', smartleadError.message);
+      // Don't fail the whole invitation if SmartLead fails
+    }
+    // ==================== END SMARTLEAD ====================
 
     return res.status(201).json({
       success: true,
@@ -121,13 +153,13 @@ module.exports = async (req, res) => {
         email: invitation.email,
         role: invitation.role,
         token: invitation.token,
-        invited_by: invitation.invited_by, // ✅ Include in response
+        invited_by: invitation.invited_by,
         signupLink: signupLink,
         expiresAt: invitation.expires_at
       },
       message: 'Invitation created successfully'
     });
-
+    
   } catch (error) {
     console.error('[Invitations] Server error:', error);
     return res.status(500).json({
