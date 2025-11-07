@@ -2,7 +2,6 @@
 // Handles SaaS tenant signup with Stripe subscription
 
 const { createClient } = require('@supabase/supabase-js');
-const bcrypt = require('bcryptjs');
 const Stripe = require('stripe');
 
 const supabase = createClient(
