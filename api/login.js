@@ -1,44 +1,14 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL 
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const PERMISSIONS = {
   admin: 'all',
   advisor: ['calls.view', 'deals.view', 'pipeline.view', 'campaigns.view'],
-  manager: [
-    'dashboard.view', 'dashboard.edit', 'contacts.view', 'contacts.create',
-    'contacts.edit', 'calls.view', 'calls.create', 'calls.edit',
-    'deals.view', 'deals.create', 'deals.edit', 'pipeline.view',
-    'pipeline.edit', 'campaigns.view', 'campaigns.create', 'campaigns.edit',
-    'financials.view', 'sprints.view', 'sprints.create', 'sprints.edit',
-    'users.view'
-  ],
-  client: [
-    'dashboard.view', 'contacts.view', 'calls.view', 'deals.view',
-    'pipeline.view', 'financials.view'
-  ]
+  client: ['dashboard.view', 'contacts.view', 'calls.view', 'deals.view', 'pipeline.view', 'financials.view']
 };
-
-// Read request body
-async function getBody(req) {
-  if (req.body) {
-    return typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-  }
-  
-  return new Promise((resolve) => {
-    let data = '';
-    req.on('data', chunk => { data += chunk.toString(); });
-    req.on('end', () => {
-      try {
-        resolve(JSON.parse(data));
-      } catch {
-        resolve({});
-      }
-    });
-  });
-}
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -49,80 +19,92 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ success: false, error: 'Method not allowed' });
 
   try {
-    const body = await getBody(req);
-    const email = body.email;
-    const password = body.password;
+    // Log everything for debugging
+    console.log('[Login] req.body type:', typeof req.body);
+    console.log('[Login] req.body:', JSON.stringify(req.body));
+    
+    let email, password;
+    
+    // Try different ways to get the data
+    if (req.body && typeof req.body === 'object') {
+      email = req.body.email;
+      password = req.body.password;
+      console.log('[Login] Got from object');
+    } else if (typeof req.body === 'string') {
+      const parsed = JSON.parse(req.body);
+      email = parsed.email;
+      password = parsed.password;
+      console.log('[Login] Got from string');
+    } else {
+      console.log('[Login] Body is neither object nor string!');
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot parse request body',
+        debug: { bodyType: typeof req.body, body: req.body }
+      });
+    }
 
-    console.log('[Login] Attempt:', email);
+    console.log('[Login] Email:', email, 'Password:', password ? '***' : 'MISSING');
 
     if (!email || !password) {
       return res.status(400).json({ success: false, error: 'Email and password required' });
     }
 
-    // Check users table - ONLY select columns that exist!
-    const { data: user, error: userError } = await supabase
+    // Check users table
+    const { data: user } = await supabase
       .from('users')
       .select('id, email, password, full_name, role, user_type')
       .eq('email', email.toLowerCase())
       .single();
 
-    if (user && !userError && user.password === password) {
+    if (user && user.password === password) {
       const userRole = user.role || 'admin';
-      const redirectTo = (userRole === 'advisor' || userRole === 'consultant') 
-        ? '/advisor-dashboard.html' 
-        : '/dashboard.html';
+      console.log('[Login] ✅ Success');
 
-      console.log('[Login] ✅ Success:', email, 'Role:', userRole);
-
-      // Return data matching YOUR database structure
       return res.status(200).json({
         success: true,
         data: {
           id: user.id,
-          name: user.full_name || email.split('@')[0],  // Use full_name, fallback to email
-          full_name: user.full_name,  // This is what your dashboards expect
+          name: user.full_name || email.split('@')[0],
+          full_name: user.full_name,
           email: user.email,
           role: userRole,
           type: userRole === 'advisor' ? 'advisor' : 'admin',
           permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
-          redirectTo: redirectTo
+          redirectTo: userRole === 'advisor' ? '/advisor-dashboard.html' : '/dashboard.html'
         }
       });
     }
 
-    // Check contacts table
-    const { data: contact, error: contactError } = await supabase
+    // Check contacts
+    const { data: contact } = await supabase
       .from('contacts')
       .select('*')
       .eq('email', email.toLowerCase())
       .single();
 
-    if (contact && !contactError) {
-      const clientPassword = contact.password || contact.temp_password;
-      if (clientPassword === password) {
-        console.log('[Login] ✅ Client success:', email);
-        return res.status(200).json({
-          success: true,
-          data: {
-            id: contact.id,
-            name: contact.name || contact.company || email.split('@')[0],
-            full_name: contact.name,
-            email: contact.email,
-            company: contact.company,
-            role: 'client',
-            type: 'client',
-            permissions: PERMISSIONS.client,
-            redirectTo: '/client-dashboard.html'
-          }
-        });
-      }
+    if (contact && (contact.password === password || contact.temp_password === password)) {
+      console.log('[Login] ✅ Client success');
+      return res.status(200).json({
+        success: true,
+        data: {
+          id: contact.id,
+          name: contact.name || contact.company || email.split('@')[0],
+          full_name: contact.name,
+          email: contact.email,
+          role: 'client',
+          type: 'client',
+          permissions: PERMISSIONS.client,
+          redirectTo: '/client-dashboard.html'
+        }
+      });
     }
 
-    console.log('[Login] ❌ Invalid credentials');
     return res.status(401).json({ success: false, error: 'Invalid email or password' });
 
   } catch (error) {
-    console.error('[Login] ERROR:', error);
-    return res.status(500).json({ success: false, error: 'Login failed: ' + error.message });
+    console.error('[Login] ERROR:', error.message);
+    console.error('[Login] Stack:', error.stack);
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
