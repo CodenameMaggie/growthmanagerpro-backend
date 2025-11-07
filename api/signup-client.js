@@ -2,7 +2,6 @@
 // Updated to handle advisor connections
 
 const { createClient } = require('@supabase/supabase-js');
-const bcrypt = require('bcryptjs');
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
