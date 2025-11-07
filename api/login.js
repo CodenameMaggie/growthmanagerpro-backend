@@ -39,24 +39,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Parse request body (Vercel sometimes doesn't auto-parse)
-    let body = req.body;
-    if (!body && req.method === 'POST') {
-      // Read from stream if body not parsed
-      body = await new Promise((resolve) => {
-        let data = '';
-        req.on('data', chunk => { data += chunk.toString(); });
-        req.on('end', () => {
-          try { resolve(JSON.parse(data)); } 
-          catch { resolve({}); }
-        });
-      });
-    }
-    if (typeof body === 'string') {
-      body = JSON.parse(body);
-    }
-    
-    const { email, password } = body;
+    const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
