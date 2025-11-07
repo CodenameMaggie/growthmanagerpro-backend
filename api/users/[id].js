@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('id, email, full_name, role, status, last_login, created_at')
+        .select('id, email, full_name, role, status, user_type, advisor_id, permissions, last_login, created_at')
         .eq('id', id)
         .single();
 
