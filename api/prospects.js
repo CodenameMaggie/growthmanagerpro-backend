@@ -2,273 +2,274 @@ const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Permission definitions matching permissions.js
+const PERMISSIONS = {
+  admin: 'all',
+  advisor: ['calls.view', 'deals.view', 'pipeline.view', 'campaigns.view'],
+  manager: [
+    'dashboard.view', 'dashboard.edit', 'contacts.view', 'contacts.create',
+    'contacts.edit', 'calls.view', 'calls.create', 'calls.edit',
+    'deals.view', 'deals.create', 'deals.edit', 'pipeline.view',
+    'pipeline.edit', 'campaigns.view', 'campaigns.create', 'campaigns.edit',
+    'financials.view', 'sprints.view', 'sprints.create', 'sprints.edit',
+    'users.view'
+  ],
+  client: [
+    'dashboard.view', 'contacts.view', 'calls.view', 'deals.view',
+    'pipeline.view', 'financials.view'
+  ]
+};
+
 module.exports = async (req, res) => {
-  // CORS headers - set FIRST, before any other logic
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Extract ID from URL if present (e.g., /api/prospects/123-456-789)
-  const urlParts = req.url.split('/');
-  const urlId = urlParts[urlParts.length - 1].split('?')[0]; // Remove query params
-  const prospectId = urlId !== 'prospects' ? urlId : null;
+  if (req.method !== 'POST') {
+    return res.status(405).json({ 
+      success: false, 
+      error: 'Method not allowed' 
+    });
+  }
 
-  if (req.method === 'GET') {
-    try {
-      console.log('[Prospects API] Fetching contacts with pipeline stages...');
+  try {
+    const { email, password } = req.body;
 
-      // Try to use the pipeline function
-      const { data: pipelineData, error: pipelineError } = await supabase.rpc('get_contacts_with_pipeline');
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password are required'
+      });
+    }
 
-      // If function works, use it
-      if (!pipelineError && pipelineData) {
-        console.log(`[Prospects API] ✅ Fetched ${pipelineData.length} contacts with pipeline tracking`);
-        
+    // First, check if this is an admin/advisor login (from users table)
+    const { data: adminUser, error: adminError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .single();
+
+    if (adminUser && !adminError) {
+      // Admin login - check password (you should hash passwords in production!)
+      if (adminUser.password === password) {
+        const userRole = adminUser.role || 'admin';
+
+        // CREATE SUPABASE AUTH SESSION
+        // This is the key difference - we create a real Supabase session
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: email.toLowerCase(),
+          password: password
+        });
+
+        // If Supabase Auth user doesn't exist yet, create it
+        if (authError && authError.message.includes('Invalid login credentials')) {
+          // Create Supabase Auth user
+          const { data: newAuthData, error: signUpError } = await supabase.auth.admin.createUser({
+            email: email.toLowerCase(),
+            password: password,
+            email_confirm: true,
+            user_metadata: {
+              id: adminUser.id,
+              name: adminUser.full_name,
+              role: userRole,
+              type: 'admin',
+              permissions: PERMISSIONS[userRole] || PERMISSIONS.admin
+            }
+          });
+
+          if (signUpError) {
+            console.error('Error creating Supabase Auth user:', signUpError);
+            return res.status(500).json({
+              success: false,
+              error: 'Failed to create authentication session'
+            });
+          }
+
+          // Now sign them in
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: email.toLowerCase(),
+            password: password
+          });
+
+          if (signInError) {
+            console.error('Error signing in after creation:', signInError);
+            return res.status(500).json({
+              success: false,
+              error: 'Authentication failed'
+            });
+          }
+
+          // Return user data with session
+          return res.status(200).json({
+            success: true,
+            data: {
+              id: adminUser.id,
+              name: adminUser.full_name,
+              full_name: adminUser.full_name,
+              email: adminUser.email,
+              role: userRole,
+              type: (userRole === 'advisor' || userRole === 'consultant') ? 'advisor' : 'admin',
+              permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
+              redirectTo: (userRole === 'advisor' || userRole === 'consultant') ? '/advisor-dashboard.html' : '/dashboard.html'
+            },
+            session: signInData.session
+          });
+        }
+
+        if (authError) {
+          console.error('Auth error:', authError);
+          return res.status(500).json({
+            success: false,
+            error: 'Authentication failed'
+          });
+        }
+
+        // Successful admin login with Supabase session
         return res.status(200).json({
           success: true,
           data: {
-            prospects: pipelineData.map(contact => ({
-              // Core fields
-              id: contact.id,
-              name: contact.name,
-              email: contact.email,
-              company: contact.company,
-              phone: contact.phone,
-              status: contact.status,
-              source: contact.source,
-              notes: contact.notes,
-              last_contact_date: contact.last_contact_date,
-              created_at: contact.created_at,
-              updated_at: contact.updated_at,
-              
-              // Pipeline fields (from function)
-              current_campaign: contact.current_campaign,
-              pipeline_stage: contact.pipeline_stage,
-              in_pipeline: contact.in_pipeline,
-              
-              // Engagement fields (default values for now)
-              last_email_sent: contact.last_email_sent,
-              last_email_opened: contact.last_email_opened,
-              last_email_clicked: contact.last_email_clicked,
-              email_open_count: contact.email_open_count || 0,
-              email_click_count: contact.email_click_count || 0,
-              has_replied: contact.has_replied || false,
-              reply_date: contact.reply_date,
-              email_status: contact.email_status,
-              last_engagement_date: contact.last_engagement_date,
-              engagement_synced_at: contact.engagement_synced_at,
-              assigned_sender_email: contact.assigned_sender_email,
-              
-              // Legacy fields
-              instantly_campaign: contact.current_campaign, // Use current_campaign as alias
-              zoomScheduled: false // This one might not be in DB
-            }))
+            id: adminUser.id,
+            name: adminUser.full_name,
+            full_name: adminUser.full_name,
+            email: adminUser.email,
+            role: userRole,
+            type: (userRole === 'advisor' || userRole === 'consultant') ? 'advisor' : 'admin',
+            permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
+            redirectTo: (userRole === 'advisor' || userRole === 'consultant') ? '/advisor-dashboard.html' : '/dashboard.html'
           },
-          timestamp: new Date().toISOString(),
-          using_pipeline_tracking: true
+          session: authData.session
+        });
+      }
+    }
+
+    // If not admin, check if this is a client login (from contacts table)
+    const { data: clientUser, error: clientError } = await supabase
+      .from('contacts')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .single();
+
+    if (clientError || !clientUser) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
+    }
+
+    // For clients: Check if they have a password field
+    const clientPassword = clientUser.password || clientUser.temp_password;
+
+    if (!clientPassword) {
+      return res.status(401).json({
+        success: false,
+        error: 'Account not fully set up. Please contact support.'
+      });
+    }
+
+    if (clientPassword !== password) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid email or password'
+      });
+    }
+
+    // CREATE SUPABASE AUTH SESSION FOR CLIENT
+    const { data: clientAuthData, error: clientAuthError } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(),
+      password: password
+    });
+
+    // If client doesn't have Supabase Auth account, create it
+    if (clientAuthError && clientAuthError.message.includes('Invalid login credentials')) {
+      const { data: newClientAuth, error: clientSignUpError } = await supabase.auth.admin.createUser({
+        email: email.toLowerCase(),
+        password: password,
+        email_confirm: true,
+        user_metadata: {
+          id: clientUser.id,
+          name: clientUser.name,
+          company: clientUser.company,
+          role: 'client',
+          type: 'client',
+          permissions: PERMISSIONS.client
+        }
+      });
+
+      if (clientSignUpError) {
+        console.error('Error creating client Supabase Auth user:', clientSignUpError);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to create authentication session'
         });
       }
 
-      // Fallback to simple query
-      console.log('[Prospects API] ⚠️ Pipeline function not available, using fallback...');
-      
-      const { data, error } = await supabase
-        .from('contacts')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Sign them in
+      const { data: clientSignInData, error: clientSignInError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase(),
+        password: password
+      });
 
-      if (error) throw error;
-
-      console.log(`[Prospects API] Fetched ${data.length} contacts (fallback mode)`);
+      if (clientSignInError) {
+        console.error('Error signing in client:', clientSignInError);
+        return res.status(500).json({
+          success: false,
+          error: 'Authentication failed'
+        });
+      }
 
       return res.status(200).json({
         success: true,
         data: {
-          prospects: data.map(contact => ({
-            id: contact.id,
-            name: contact.name,
-            email: contact.email,
-            company: contact.company,
-            phone: contact.phone,
-            status: contact.status,
-            source: contact.source,
-            notes: contact.notes,
-            last_contact_date: contact.last_contact_date,
-            created_at: contact.created_at,
-            updated_at: contact.updated_at,
-            
-            // Fallback values
-            current_campaign: null,
-            pipeline_stage: null,
-            in_pipeline: false,
-            
-            last_email_sent: null,
-            last_email_opened: null,
-            last_email_clicked: null,
-            email_open_count: 0,
-            email_click_count: 0,
-            has_replied: false,
-            reply_date: null,
-            email_status: 'unknown',
-            last_engagement_date: null,
-            engagement_synced_at: null,
-            assigned_sender_email: null,
-            
-            instantly_campaign: null,
-            zoomScheduled: false
-          }))
+          id: clientUser.id,
+          name: clientUser.name,
+          full_name: clientUser.name,
+          email: clientUser.email,
+          company: clientUser.company,
+          role: 'client',
+          type: 'client',
+          permissions: PERMISSIONS.client,
+          redirectTo: '/client-portal.html'
         },
-        timestamp: new Date().toISOString(),
-        using_pipeline_tracking: false,
-        note: 'Pipeline function not available - contacts shown without pipeline stages'
-      });
-
-    } catch (error) {
-      console.error('[Prospects API] Error:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message
+        session: clientSignInData.session
       });
     }
-  }
 
-  if (req.method === 'POST') {
-    try {
-      const { name, email, company, phone, status, source, notes } = req.body;
-
-      if (!name || !email) {
-        return res.status(400).json({
-          success: false,
-          error: 'Name and email are required'
-        });
-      }
-
-      const { data, error } = await supabase
-        .from('contacts')
-        .insert([{
-          name: name,
-          email: email,
-          company: company || null,
-          phone: phone || null,
-          status: status || 'new',
-          source: source || 'manual',
-          notes: notes || null,
-          last_contact_date: new Date().toISOString()
-        }])
-        .select();
-
-      if (error) throw error;
-
-      return res.status(201).json({
-        success: true,
-        data: data[0],
-        message: 'Contact created successfully'
-      });
-
-    } catch (error) {
-      console.error('Error:', error);
+    if (clientAuthError) {
+      console.error('Client auth error:', clientAuthError);
       return res.status(500).json({
         success: false,
-        error: error.message
+        error: 'Authentication failed'
       });
     }
+
+    // Successful client login with Supabase session
+    return res.status(200).json({
+      success: true,
+      data: {
+        id: clientUser.id,
+        name: clientUser.name,
+        full_name: clientUser.name,
+        email: clientUser.email,
+        company: clientUser.company,
+        role: 'client',
+        type: 'client',
+        permissions: PERMISSIONS.client,
+        redirectTo: '/client-portal.html'
+      },
+      session: clientAuthData.session
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Login failed. Please try again.'
+    });
   }
-
-  if (req.method === 'PUT') {
-    try {
-      // Get ID from URL or body
-      const id = prospectId || req.body.id;
-
-      if (!id) {
-        return res.status(400).json({
-          success: false,
-          error: 'Contact ID is required'
-        });
-      }
-
-      const { name, email, company, phone, status, source, notes } = req.body;
-
-      const updateData = {
-        last_contact_date: new Date().toISOString()
-      };
-      
-      if (name) updateData.name = name;
-      if (email) updateData.email = email;
-      if (company !== undefined) updateData.company = company;
-      if (phone !== undefined) updateData.phone = phone;
-      if (status) updateData.status = status;
-      if (source) updateData.source = source;
-      if (notes !== undefined) updateData.notes = notes;
-
-      const { data, error } = await supabase
-        .from('contacts')
-        .update(updateData)
-        .eq('id', id)
-        .select();
-
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Contact not found'
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-        data: data[0],
-        message: 'Contact updated successfully'
-      });
-
-    } catch (error) {
-      console.error('Error:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  }
-
-  if (req.method === 'DELETE') {
-    try {
-      // Get ID from URL or body
-      const id = prospectId || req.body.id;
-
-      if (!id) {
-        return res.status(400).json({
-          success: false,
-          error: 'Contact ID is required'
-        });
-      }
-
-      const { error } = await supabase
-        .from('contacts')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      return res.status(200).json({
-        success: true,
-        message: 'Contact deleted successfully'
-      });
-
-    } catch (error) {
-      console.error('Error:', error);
-      return res.status(500).json({
-        success: false,
-        error: error.message
-      });
-    }
-  }
-
-  return res.status(405).json({ error: 'Method not allowed' });
 };
