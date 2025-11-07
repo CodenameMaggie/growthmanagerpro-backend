@@ -118,7 +118,7 @@ module.exports = async (req, res) => {
     }
 
     // ==================== HASH PASSWORD ====================
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const plainPassword = password; // Plain text to match login.js
 
     // ==================== CREATE USER ====================
     const { data: newUser, error: createError } = await supabase
@@ -126,7 +126,7 @@ module.exports = async (req, res) => {
       .insert([{
         email: finalEmail,
         full_name: full_name,
-        password: hashedPassword,
+        password: plainPassword,
         role: finalRole,
         company: company || null,
         phone: phone || null,
