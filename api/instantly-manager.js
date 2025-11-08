@@ -237,7 +237,7 @@ async function handleSync(req, res) {
 
     const leadsUrl = 'https://api.instantly.ai/api/v2/leads/list';
     
-    console.log('[Instantly Sync] Fetching leads from API V2...');
+    console.log('[Instantly Sync] Fetching leads from ALL campaigns...');
     const leadsResponse = await fetch(leadsUrl, {
       method: 'POST',
       headers: {
@@ -256,8 +256,19 @@ async function handleSync(req, res) {
     }
 
     const leadsData = await leadsResponse.json();
-    const leads = leadsData.items || [];
-    console.log('[Instantly Sync] Total leads collected:', leads.length);
+    let allLeads = leadsData.items || [];
+    console.log('[Instantly Sync] Total leads collected:', allLeads.length);
+
+    // Filter for positive replies ONLY
+    let leads = allLeads.filter(lead => {
+      return lead.replied === true || 
+             lead.has_replied === true || 
+             lead.timestamp_replied ||
+             lead.interest_status === 'interested' ||
+             lead.interest_status === 'positive';
+    });
+
+    console.log(`[Instantly Sync] Filtered to ${leads.length} leads with positive replies`);
 
     let syncedCount = 0;
     let errorCount = 0;
@@ -330,9 +341,10 @@ async function handleSync(req, res) {
         total_leads: leads.length,
         synced: syncedCount,
         errors: errorCount,
+        filtered_from: allLeads.length,
         error_details: errors.length > 0 ? errors.slice(0, 5) : []
       },
-      message: `Successfully synced ${syncedCount} contacts from Instantly.ai`
+      message: `Successfully synced ${syncedCount} contacts with positive replies`
     });
 
   } catch (error) {
