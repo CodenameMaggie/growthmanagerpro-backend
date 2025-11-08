@@ -106,12 +106,13 @@ async function getAssignedSender(leadEmail) {
 /**
  * Store sender assignment in database
  */
-async function storeSenderAssignment(contactEmail, senderEmail) {
+async function storeSenderAssignment(contactEmail, senderEmail, tenantId) {
   try {
     const { error } = await supabase
       .from('contacts')
       .update({ assigned_sender_email: senderEmail })
-      .eq('email', contactEmail);
+      .eq('email', contactEmail)
+      .eq('tenant_id', tenantId);  // ← ADDED: Verify tenant ownership
 
     if (error) {
       console.error('[Sender Tracker] Error storing sender:', error);
@@ -129,12 +130,13 @@ async function storeSenderAssignment(contactEmail, senderEmail) {
 /**
  * Get stored sender from database
  */
-async function getStoredSender(contactEmail) {
+async function getStoredSender(contactEmail, tenantId) {
   try {
     const { data, error } = await supabase
       .from('contacts')
       .select('assigned_sender_email')
       .eq('email', contactEmail)
+      .eq('tenant_id', tenantId)  // ← ADDED: Verify tenant ownership
       .single();
 
     if (error || !data) return null;
@@ -173,7 +175,7 @@ function getCampaignForSender(stage, senderEmail) {
 /**
  * Get next available pool (round-robin)
  */
-async function getNextAvailablePool() {
+async function getNextAvailablePool(tenantId) {
   try {
     const poolCounts = {};
     
@@ -181,7 +183,8 @@ async function getNextAvailablePool() {
       const { count, error } = await supabase
         .from('contacts')
         .select('*', { count: 'exact', head: true })
-        .in('assigned_sender_email', SENDER_POOLS[poolName].senders);
+        .in('assigned_sender_email', SENDER_POOLS[poolName].senders)
+        .eq('tenant_id', tenantId);  // ← ADDED: Filter by tenant
       
       poolCounts[poolName] = error ? 999 : (count || 0);
     }
@@ -216,7 +219,17 @@ function getCampaignForPool(pool, stage) {
  */
 async function handleSync(req, res) {
   try {
-    console.log('[Instantly Sync] Starting sync from Instantly.ai API V2...');
+    // Extract tenant_id from request body
+    const { tenant_id } = req.body;
+
+    if (!tenant_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tenant ID required'
+      });
+    }
+
+    console.log(`[Instantly Sync] Starting sync for tenant: ${tenant_id}`);
 
     if (!instantlyApiKey) {
       throw new Error('INSTANTLY_API_KEY not configured');
@@ -253,6 +266,7 @@ async function handleSync(req, res) {
     for (const lead of leads) {
       try {
         const contactData = {
+          tenant_id: tenant_id,  // ← ADDED: Set tenant_id
           email: lead.email,
           name: lead.first_name && lead.last_name 
             ? `${lead.first_name} ${lead.last_name}`.trim()
@@ -268,7 +282,7 @@ async function handleSync(req, res) {
         const { data, error } = await supabase
           .from('contacts')
           .upsert(contactData, {
-            onConflict: 'email',
+            onConflict: 'email,tenant_id',  // ← UPDATED: Composite key
             ignoreDuplicates: false
           })
           .select();
@@ -315,7 +329,17 @@ async function handleSync(req, res) {
  */
 async function handleSyncEngagement(req, res) {
   try {
-    console.log('[Engagement Sync] Starting sync for Growth Manager Pro campaigns...');
+    // Extract tenant_id from request body
+    const { tenant_id } = req.body;
+
+    if (!tenant_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tenant ID required'
+      });
+    }
+
+    console.log(`[Engagement Sync] Starting sync for tenant: ${tenant_id}`);
 
     // Only sync these 3 campaigns (Growth Manager Pro campaigns)
     const campaignsToSync = [
@@ -353,7 +377,7 @@ async function handleSyncEngagement(req, res) {
           },
           body: JSON.stringify({
             campaign: campaign.id,
-            limit: 100 // Adjust if needed
+            limit: 100
           })
         });
 
@@ -369,15 +393,16 @@ async function handleSyncEngagement(req, res) {
         // Process each lead
         for (const lead of leads) {
           try {
-            // Check if contact exists in our database
+            // Check if contact exists in our database FOR THIS TENANT
             const { data: contact } = await supabase
               .from('contacts')
               .select('id, email')
               .eq('email', lead.email)
+              .eq('tenant_id', tenant_id)  // ← ADDED: Filter by tenant
               .single();
 
             if (!contact) {
-              // Skip leads not in our Growth Manager Pro database
+              // Skip leads not in our Growth Manager Pro database for this tenant
               continue;
             }
 
@@ -452,7 +477,7 @@ async function handleSyncEngagement(req, res) {
 
                 // Track status
                 if (email.status) {
-                  engagementData.email_status = email.status; // delivered, bounced, etc.
+                  engagementData.email_status = email.status;
                 }
               });
             }
@@ -478,7 +503,8 @@ async function handleSyncEngagement(req, res) {
                 engagement_synced_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
               })
-              .eq('id', contact.id);
+              .eq('id', contact.id)
+              .eq('tenant_id', tenant_id);  // ← ADDED: Verify tenant ownership
 
             if (updateError) {
               console.error(`[Engagement Sync] Error updating ${lead.email}:`, updateError);
@@ -510,7 +536,7 @@ async function handleSyncEngagement(req, res) {
         contacts_processed: totalProcessed,
         contacts_updated: totalUpdated,
         errors: errors.length,
-        error_details: errors.slice(0, 5) // First 5 errors only
+        error_details: errors.slice(0, 5)
       }
     });
 
@@ -528,12 +554,19 @@ async function handleSyncEngagement(req, res) {
  */
 async function handleSendDiscovery(req, res) {
   try {
-    const { discovery_call_id } = req.body;
+    const { discovery_call_id, tenant_id } = req.body;
 
     if (!discovery_call_id) {
       return res.status(400).json({
         success: false,
         error: 'discovery_call_id is required'
+      });
+    }
+
+    if (!tenant_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id is required'
       });
     }
 
@@ -544,6 +577,7 @@ async function handleSendDiscovery(req, res) {
       .from('discovery_calls')
       .select('*, contacts(*), podcast_interviews(*)')
       .eq('id', discovery_call_id)
+      .eq('tenant_id', tenant_id)  // ← ADDED: Verify tenant ownership
       .single();
 
     if (fetchError || !discoveryCall) {
@@ -571,7 +605,7 @@ async function handleSendDiscovery(req, res) {
     let campaignId = null;
 
     // Step 1: Check if sender is already stored in database
-    senderEmail = await getStoredSender(contact.email);
+    senderEmail = await getStoredSender(contact.email, tenant_id);
     
     if (senderEmail) {
       console.log('[Discovery Invite] Found stored sender:', senderEmail);
@@ -582,17 +616,17 @@ async function handleSendDiscovery(req, res) {
       
       if (senderEmail) {
         console.log('[Discovery Invite] Found sender from Instantly:', senderEmail);
-        await storeSenderAssignment(contact.email, senderEmail);
+        await storeSenderAssignment(contact.email, senderEmail, tenant_id);
         campaignId = getCampaignForSender('discovery', senderEmail);
       } else {
         // Step 3: Assign new sender using round-robin
         console.log('[Discovery Invite] No sender found, assigning new one...');
-        const pool = await getNextAvailablePool();
+        const pool = await getNextAvailablePool(tenant_id);
         const poolSenders = SENDER_POOLS[pool].senders;
         senderEmail = poolSenders[0];
         
         console.log('[Discovery Invite] Assigned to Pool', pool, 'sender:', senderEmail);
-        await storeSenderAssignment(contact.email, senderEmail);
+        await storeSenderAssignment(contact.email, senderEmail, tenant_id);
         campaignId = getCampaignForPool(pool, 'discovery');
       }
     }
@@ -636,7 +670,8 @@ async function handleSendDiscovery(req, res) {
         calendly_invite_sent_at: new Date().toISOString(),
         calendly_link: 'https://calendly.com/maggie-maggieforbesstrategies/discovery-call'
       })
-      .eq('id', discovery_call_id);
+      .eq('id', discovery_call_id)
+      .eq('tenant_id', tenant_id);  // ← ADDED: Verify tenant ownership
 
     console.log('[Discovery Invite] ✅ Email sent successfully from sender:', senderEmail);
 
@@ -662,12 +697,19 @@ async function handleSendDiscovery(req, res) {
  */
 async function handleSendPodcast(req, res) {
   try {
-    const { callId } = req.body;
+    const { callId, tenant_id } = req.body;
 
     if (!callId) {
       return res.status(400).json({ 
         success: false,
         error: 'callId is required' 
+      });
+    }
+
+    if (!tenant_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id is required'
       });
     }
 
@@ -678,6 +720,7 @@ async function handleSendPodcast(req, res) {
       .from('pre_qualification_calls')
       .select('*')
       .eq('id', callId)
+      .eq('tenant_id', tenant_id)  // ← ADDED: Verify tenant ownership
       .single();
 
     if (callError || !prequalCall) {
@@ -715,7 +758,7 @@ async function handleSendPodcast(req, res) {
     let campaignId = null;
 
     // Check if sender is already stored
-    senderEmail = await getStoredSender(prequalCall.guest_email);
+    senderEmail = await getStoredSender(prequalCall.guest_email, tenant_id);
     
     if (senderEmail) {
       console.log('[Podcast Invite] Found stored sender:', senderEmail);
@@ -726,17 +769,17 @@ async function handleSendPodcast(req, res) {
       
       if (senderEmail) {
         console.log('[Podcast Invite] Found sender from Instantly:', senderEmail);
-        await storeSenderAssignment(prequalCall.guest_email, senderEmail);
+        await storeSenderAssignment(prequalCall.guest_email, senderEmail, tenant_id);
         campaignId = getCampaignForSender('podcast', senderEmail);
       } else {
         // Assign new sender using round-robin
         console.log('[Podcast Invite] No sender found, assigning new one...');
-        const pool = await getNextAvailablePool();
+        const pool = await getNextAvailablePool(tenant_id);
         const poolSenders = SENDER_POOLS[pool].senders;
         senderEmail = poolSenders[0];
         
         console.log('[Podcast Invite] Assigned to Pool', pool, 'sender:', senderEmail);
-        await storeSenderAssignment(prequalCall.guest_email, senderEmail);
+        await storeSenderAssignment(prequalCall.guest_email, senderEmail, tenant_id);
         campaignId = getCampaignForPool(pool, 'podcast');
       }
     }
@@ -782,7 +825,8 @@ async function handleSendPodcast(req, res) {
         podcast_invitation_sent_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .eq('id', callId);
+      .eq('id', callId)
+      .eq('tenant_id', tenant_id);  // ← ADDED: Verify tenant ownership
 
     if (updateError) {
       console.error('[Podcast Invite] ⚠️ Error updating database:', updateError);
@@ -796,7 +840,8 @@ async function handleSendPodcast(req, res) {
           status: 'podcast_scheduled',
           updated_at: new Date().toISOString()
         })
-        .eq('id', prequalCall.contact_id);
+        .eq('id', prequalCall.contact_id)
+        .eq('tenant_id', tenant_id);  // ← ADDED: Verify tenant ownership
     }
 
     console.log('[Podcast Invite] ✅ Email sent successfully from sender:', senderEmail);
@@ -827,12 +872,19 @@ async function handleSendPodcast(req, res) {
  */
 async function handleSendStrategy(req, res) {
   try {
-    const { strategy_call_id, contact_name, company, recommended_tier, systems } = req.body;
+    const { strategy_call_id, contact_name, company, recommended_tier, systems, tenant_id } = req.body;
 
     if (!strategy_call_id) {
       return res.status(400).json({
         success: false,
         error: 'strategy_call_id is required'
+      });
+    }
+
+    if (!tenant_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id is required'
       });
     }
 
@@ -843,6 +895,7 @@ async function handleSendStrategy(req, res) {
       .from('strategy_calls')
       .select('*, contacts(*)')
       .eq('id', strategy_call_id)
+      .eq('tenant_id', tenant_id)  // ← ADDED: Verify tenant ownership
       .single();
 
     if (fetchError || !strategyCall) {
@@ -871,7 +924,7 @@ async function handleSendStrategy(req, res) {
     let campaignId = null;
 
     // Use same sender that contacted them before
-    senderEmail = await getStoredSender(contact.email);
+    senderEmail = await getStoredSender(contact.email, tenant_id);
     
     if (senderEmail) {
       console.log('[Strategy Invite] Found stored sender:', senderEmail);
@@ -881,15 +934,15 @@ async function handleSendStrategy(req, res) {
       
       if (senderEmail) {
         console.log('[Strategy Invite] Found sender from Instantly:', senderEmail);
-        await storeSenderAssignment(contact.email, senderEmail);
+        await storeSenderAssignment(contact.email, senderEmail, tenant_id);
         campaignId = getCampaignForSender('strategy', senderEmail);
       } else {
-        const pool = await getNextAvailablePool();
+        const pool = await getNextAvailablePool(tenant_id);
         const poolSenders = SENDER_POOLS[pool].senders;
         senderEmail = poolSenders[0];
         
         console.log('[Strategy Invite] Assigned to Pool', pool, 'sender:', senderEmail);
-        await storeSenderAssignment(contact.email, senderEmail);
+        await storeSenderAssignment(contact.email, senderEmail, tenant_id);
         campaignId = getCampaignForPool(pool, 'strategy');
       }
     }
@@ -933,7 +986,8 @@ async function handleSendStrategy(req, res) {
         calendly_invite_sent_at: new Date().toISOString(),
         calendly_link: 'https://calendly.com/maggie-maggieforbesstrategies/strategy-call'
       })
-      .eq('id', strategy_call_id);
+      .eq('id', strategy_call_id)
+      .eq('tenant_id', tenant_id);  // ← ADDED: Verify tenant ownership
 
     console.log('[Strategy Invite] ✅ Email sent successfully from sender:', senderEmail);
 
