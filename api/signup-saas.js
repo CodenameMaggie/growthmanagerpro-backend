@@ -19,7 +19,6 @@ const PRICE_IDS = {
     scale: process.env.STRIPE_PRICE_SCALE,
     enterprise: process.env.STRIPE_PRICE_ENTERPRISE
 };
-};
 
 // Tier limits
 const TIER_LIMITS = {
@@ -28,7 +27,6 @@ const TIER_LIMITS = {
     growth: { max_contacts: 50, max_users: 3, max_advisors: 2, monthly_fee: 597 },
     scale: { max_contacts: 200, max_users: 10, max_advisors: 5, monthly_fee: 997 },
     enterprise: { max_contacts: 999999, max_users: 999999, max_advisors: 999999, monthly_fee: 2500 }
-};
 };
 
 module.exports = async (req, res) => {
