@@ -257,20 +257,9 @@ async function handleSync(req, res) {
 
     const leadsData = await leadsResponse.json();
     let allLeads = leadsData.items || [];
-    console.log('[Instantly Sync] Total leads collected:', allLeads.length);
+    let leads = allLeads; // No filter - sync everything
     
-    // DEBUG: Log first lead to see available fields
-    if (allLeads.length > 0) {
-      console.log('[Instantly Sync] Sample lead fields:', Object.keys(allLeads[0]));
-      console.log('[Instantly Sync] Sample lead data:', JSON.stringify(allLeads[0], null, 2));
-    }
-
-    // Filter for interested leads ONLY
-    let leads = allLeads.filter(lead => {
-      return lead.interest_status === 'interested';
-    });
-
-    console.log(`[Instantly Sync] Filtered to ${leads.length} leads with positive replies`);
+    console.log('[Instantly Sync] Total leads to sync:', leads.length);
 
     let syncedCount = 0;
     let errorCount = 0;
