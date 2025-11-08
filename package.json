@@ -4,6 +4,7 @@
   "description": "Growth Manager Pro Backend API",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
-    "@anthropic-ai/sdk": "^0.20.0"
+    "@anthropic-ai/sdk": "^0.20.0",
+    "stripe": "^14.0.0"
   }
 }
