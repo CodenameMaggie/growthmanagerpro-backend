@@ -124,21 +124,45 @@ module.exports = async (req, res) => {
 
     console.log('[Signup Invited] Invitation marked as accepted');
 
-    // Return success
-    return res.status(201).json({
-      success: true,
-      user: {
-        id: newUser.id,
-        email: newUser.email,
-        full_name: newUser.full_name,
-        role: newUser.role,
-        status: newUser.status
-      },
-      token: 'demo-token-' + newUser.id,
-      message: newUser.status === 'pending' 
-        ? 'Application submitted. You will receive an email once approved.' 
-        : 'Account created successfully!'
-    });
+    // Determine redirect and type based on role
+let redirectTo, userType, permissions;
+
+if (newUser.role === 'admin' || newUser.role === 'saas') {
+  redirectTo = '/dashboard.html';
+  userType = 'admin';
+  permissions = 'all';
+} else if (newUser.role === 'advisor' || newUser.role === 'consultant') {
+  redirectTo = '/advisor-dashboard.html';
+  userType = 'advisor';
+  permissions = ['advisor-dashboard.view'];
+} else if (newUser.role === 'client') {
+  redirectTo = '/client-dashboard.html';
+  userType = 'client';
+  permissions = ['client-dashboard.view'];
+} else {
+  redirectTo = '/dashboard.html';
+  userType = 'admin';
+  permissions = 'all';
+}
+
+// Return success
+return res.status(201).json({
+  success: true,
+  user: {
+    id: newUser.id,
+    email: newUser.email,
+    full_name: newUser.full_name,
+    role: newUser.role,
+    type: userType,
+    permissions: permissions,
+    redirectTo: redirectTo,
+    status: newUser.status
+  },
+  token: 'demo-token-' + newUser.id,
+  message: newUser.status === 'pending' 
+    ? 'Application submitted. You will receive an email once approved.' 
+    : 'Account created successfully!'
+});
 
   } catch (error) {
     console.error('[Signup Invited] Server error:', error);
