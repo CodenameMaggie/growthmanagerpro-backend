@@ -259,13 +259,9 @@ async function handleSync(req, res) {
     let allLeads = leadsData.items || [];
     console.log('[Instantly Sync] Total leads collected:', allLeads.length);
 
-    // Filter for positive replies ONLY
+    // Filter for interested leads ONLY
     let leads = allLeads.filter(lead => {
-      return lead.replied === true || 
-             lead.has_replied === true || 
-             lead.timestamp_replied ||
-             lead.interest_status === 'interested' ||
-             lead.interest_status === 'positive';
+      return lead.interest_status === 'interested';
     });
 
     console.log(`[Instantly Sync] Filtered to ${leads.length} leads with positive replies`);
