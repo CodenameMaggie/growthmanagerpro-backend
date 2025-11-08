@@ -268,7 +268,6 @@ async function handleSync(req, res) {
     for (const lead of leads) {
       try {
         const contactData = {
-          tenant_id: tenant_id,
           email: lead.email,
           name: lead.first_name && lead.last_name 
             ? `${lead.first_name} ${lead.last_name}`.trim()
@@ -281,39 +280,36 @@ async function handleSync(req, res) {
           last_contact_date: lead.last_replied_at || lead.timestamp_updated || new Date().toISOString()
         };
 
-        // Check if contact exists for this tenant
+        // Check if contact exists for THIS tenant
         const { data: existing } = await supabase
           .from('contacts')
           .select('id')
           .eq('email', lead.email)
           .eq('tenant_id', tenant_id)
-          .single();
+          .maybeSingle();
 
-        let data, error;
+        let result;
         
         if (existing) {
-          // Update existing contact
-          const result = await supabase
+          // Update existing
+          result = await supabase
             .from('contacts')
             .update(contactData)
             .eq('id', existing.id)
+            .eq('tenant_id', tenant_id)
             .select();
-          data = result.data;
-          error = result.error;
         } else {
-          // Insert new contact
-          const result = await supabase
+          // Insert new with tenant_id
+          result = await supabase
             .from('contacts')
-            .insert([contactData])
+            .insert([{ ...contactData, tenant_id: tenant_id }])
             .select();
-          data = result.data;
-          error = result.error;
         }
 
-        if (error) {
-          console.error('[Instantly Sync] Error syncing lead:', lead.email, error);
+        if (result.error) {
+          console.error('[Instantly Sync] Error syncing lead:', lead.email, result.error);
           errorCount++;
-          errors.push({ email: lead.email, error: error.message });
+          errors.push({ email: lead.email, error: result.error.message });
         } else {
           syncedCount++;
         }
