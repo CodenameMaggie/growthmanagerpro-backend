@@ -258,6 +258,12 @@ async function handleSync(req, res) {
     const leadsData = await leadsResponse.json();
     let allLeads = leadsData.items || [];
     console.log('[Instantly Sync] Total leads collected:', allLeads.length);
+    
+    // DEBUG: Log first lead to see available fields
+    if (allLeads.length > 0) {
+      console.log('[Instantly Sync] Sample lead fields:', Object.keys(allLeads[0]));
+      console.log('[Instantly Sync] Sample lead data:', JSON.stringify(allLeads[0], null, 2));
+    }
 
     // Filter for interested leads ONLY
     let leads = allLeads.filter(lead => {
