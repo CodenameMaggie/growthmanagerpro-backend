@@ -23,30 +23,62 @@ async function handleSync(req, res) {
       throw new Error('INSTANTLY_API_KEY not configured');
     }
 
-    // Fetch ALL leads from Instantly
-    console.log('[DEBUG] Fetching from Instantly API...');
-    const leadsResponse = await fetch('https://api.instantly.ai/api/v2/leads/list', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${instantlyApiKey}`
-      },
-      body: JSON.stringify({
-        limit: 100
-      })
-    });
+    // Fetch ALL leads using cursor-based pagination
+    console.log('[DEBUG] Fetching ALL leads from Instantly API with cursor pagination...');
+    let allLeads = [];
+    let startingAfter = null;
+    const limit = 100;
+    let hasMore = true;
+    let pageCount = 0;
 
-    if (!leadsResponse.ok) {
-      const errorText = await leadsResponse.text();
-      console.error('[DEBUG] Instantly API error:', leadsResponse.status, errorText);
-      throw new Error(`Instantly API error: ${leadsResponse.status}`);
+    while (hasMore && pageCount < 50) { // Max 5000 leads (50 pages)
+      pageCount++;
+      console.log(`[DEBUG] Fetching page ${pageCount}...`);
+      
+      const body = { limit };
+      if (startingAfter) {
+        body.starting_after = startingAfter;
+      }
+      
+      const leadsResponse = await fetch('https://api.instantly.ai/api/v2/leads/list', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${instantlyApiKey}`
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (!leadsResponse.ok) {
+        const errorText = await leadsResponse.text();
+        console.error('[DEBUG] Instantly API error:', leadsResponse.status, errorText);
+        throw new Error(`Instantly API error: ${leadsResponse.status}`);
+      }
+
+      const leadsData = await leadsResponse.json();
+      const batchLeads = leadsData.items || [];
+      
+      console.log(`[DEBUG] Page ${pageCount}: Got ${batchLeads.length} leads`);
+      
+      if (batchLeads.length === 0) {
+        console.log('[DEBUG] No more leads, stopping pagination');
+        hasMore = false;
+      } else {
+        allLeads = allLeads.concat(batchLeads);
+        
+        // Get cursor for next page
+        if (leadsData.next_starting_after) {
+          startingAfter = leadsData.next_starting_after;
+          console.log(`[DEBUG] Next cursor: ${startingAfter}`);
+        } else {
+          console.log('[DEBUG] No next_starting_after, reached end');
+          hasMore = false;
+        }
+      }
     }
 
-    const leadsData = await leadsResponse.json();
-    console.log('[DEBUG] Instantly response:', JSON.stringify(leadsData).substring(0, 500));
-    
-    const leads = leadsData.items || [];
-    console.log(`[DEBUG] Got ${leads.length} leads from Instantly`);
+    const leads = allLeads;
+    console.log(`[DEBUG] Total leads fetched across ${pageCount} pages: ${leads.length}`);
 
     if (leads.length === 0) {
       return res.status(200).json({
