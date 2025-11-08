@@ -266,7 +266,7 @@ async function handleSync(req, res) {
     for (const lead of leads) {
       try {
         const contactData = {
-          tenant_id: tenant_id,  // ← ADDED: Set tenant_id
+          tenant_id: tenant_id,
           email: lead.email,
           name: lead.first_name && lead.last_name 
             ? `${lead.first_name} ${lead.last_name}`.trim()
@@ -279,13 +279,34 @@ async function handleSync(req, res) {
           last_contact_date: lead.last_replied_at || lead.timestamp_updated || new Date().toISOString()
         };
 
-        const { data, error } = await supabase
+        // Check if contact exists for this tenant
+        const { data: existing } = await supabase
           .from('contacts')
-          .upsert(contactData, {
-            onConflict: 'email,tenant_id',  // ← UPDATED: Composite key
-            ignoreDuplicates: false
-          })
-          .select();
+          .select('id')
+          .eq('email', lead.email)
+          .eq('tenant_id', tenant_id)
+          .single();
+
+        let data, error;
+        
+        if (existing) {
+          // Update existing contact
+          const result = await supabase
+            .from('contacts')
+            .update(contactData)
+            .eq('id', existing.id)
+            .select();
+          data = result.data;
+          error = result.error;
+        } else {
+          // Insert new contact
+          const result = await supabase
+            .from('contacts')
+            .insert([contactData])
+            .select();
+          data = result.data;
+          error = result.error;
+        }
 
         if (error) {
           console.error('[Instantly Sync] Error syncing lead:', lead.email, error);
