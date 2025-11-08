@@ -2,14 +2,15 @@ const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Helper function to auto-create strategy call when discovery is completed
-async function autoCreatestrategyCall(discoveryCall) {
+async function autoCreateStrategyCall(discoveryCall, tenantId) {  // ← ADDED: tenantId parameter
   try {
     // Check if already created
     if (discoveryCall.strategy_call_created) {
-      console.log(`[Auto-Create] strategy call already exists for discovery call ${discoveryCall.id}`);
+      console.log(`[Auto-Create] Strategy call already exists for discovery call ${discoveryCall.id}`);
       return null;
     }
 
@@ -25,6 +26,7 @@ async function autoCreatestrategyCall(discoveryCall) {
     const { data: strategyCall, error: createError } = await supabase
       .from('strategy_calls')
       .insert([{
+        tenant_id: tenantId,  // ← ADDED: Set tenant_id
         prospect_name: discoveryCall.contact_name,
         company: discoveryCall.company,
         email: discoveryCall.email,
@@ -44,11 +46,12 @@ async function autoCreatestrategyCall(discoveryCall) {
         strategy_call_created: true,
         strategy_call_id: strategyCall.id
       })
-      .eq('id', discoveryCall.id);
+      .eq('id', discoveryCall.id)
+      .eq('tenant_id', tenantId);  // ← ADDED: Verify tenant ownership
 
     if (updateError) throw updateError;
 
-    console.log(`[Auto-Create] ✅ strategy call ${strategyCall.id} created for discovery call ${discoveryCall.id}`);
+    console.log(`[Auto-Create] ✅ Strategy call ${strategyCall.id} created for discovery call ${discoveryCall.id}`);
     return strategyCall;
 
   } catch (error) {
@@ -60,7 +63,7 @@ async function autoCreatestrategyCall(discoveryCall) {
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Tenant-ID');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -69,9 +72,20 @@ module.exports = async (req, res) => {
   // ==================== GET - Read all discovery calls ====================
   if (req.method === 'GET') {
     try {
+      // Extract tenant_id from request
+      const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Tenant ID required'
+        });
+      }
+
       const { data, error } = await supabase
         .from('discovery_calls')
         .select('*')
+        .eq('tenant_id', tenantId)  // ← ADDED: Filter by tenant
         .order('call_date', { ascending: false });
 
       if (error) throw error;
@@ -82,7 +96,7 @@ module.exports = async (req, res) => {
         completedCalls: data.filter(c => c.call_status === 'completed').length,
         qualifiedCalls: data.filter(c => c.call_status === 'qualified').length,
         qualificationRate: data.length > 0 ? Math.round((data.filter(c => c.call_status === 'qualified').length / data.length) * 100) : 0,
-        autoProgressedTostrategy: data.filter(c => c.strategy_call_created === true).length
+        autoProgressedToStrategy: data.filter(c => c.strategy_call_created === true).length
       };
 
       return res.status(200).json({
@@ -118,6 +132,16 @@ module.exports = async (req, res) => {
   // ==================== POST - Create new discovery call ====================
   if (req.method === 'POST') {
     try {
+      // Extract tenant_id from request
+      const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Tenant ID required'
+        });
+      }
+
       const { contactName, company, email, callDate, callStatus, callSource, notes } = req.body;
 
       if (!contactName || !email) {
@@ -139,6 +163,7 @@ module.exports = async (req, res) => {
       const { data, error } = await supabase
         .from('discovery_calls')
         .insert([{
+          tenant_id: tenantId,  // ← ADDED: Set tenant_id
           contact_name: contactName,
           company: company || null,
           email: email,
@@ -169,6 +194,16 @@ module.exports = async (req, res) => {
   // ==================== PUT - Update existing discovery call ====================
   if (req.method === 'PUT') {
     try {
+      // Extract tenant_id from request
+      const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Tenant ID required'
+        });
+      }
+
       const { id, contactName, company, email, callDate, callStatus, callSource, notes } = req.body;
 
       if (!id) {
@@ -200,6 +235,7 @@ module.exports = async (req, res) => {
         .from('discovery_calls')
         .update(updateData)
         .eq('id', id)
+        .eq('tenant_id', tenantId)  // ← ADDED: Verify tenant ownership
         .select();
 
       if (error) throw error;
@@ -207,16 +243,16 @@ module.exports = async (req, res) => {
       if (!data || data.length === 0) {
         return res.status(404).json({
           success: false,
-          error: 'Call not found'
+          error: 'Call not found or access denied'
         });
       }
 
       const updatedCall = data[0];
 
-      // 🚀 AUTO-CREATE strategy CALL if completed/qualified
+      // 🚀 AUTO-CREATE STRATEGY CALL if completed/qualified
       let strategyCallCreated = null;
       if (updatedCall.call_status === 'completed' || updatedCall.call_status === 'qualified') {
-        strategyCallCreated = await autoCreatestrategyCall(updatedCall);
+        strategyCallCreated = await autoCreateStrategyCall(updatedCall, tenantId);  // ← ADDED: Pass tenantId
       }
 
       return res.status(200).json({
@@ -251,6 +287,16 @@ module.exports = async (req, res) => {
   // ==================== DELETE - Remove discovery call ====================
   if (req.method === 'DELETE') {
     try {
+      // Extract tenant_id from request
+      const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Tenant ID required'
+        });
+      }
+
       const { id } = req.body;
 
       if (!id) {
@@ -263,7 +309,8 @@ module.exports = async (req, res) => {
       const { error } = await supabase
         .from('discovery_calls')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('tenant_id', tenantId);  // ← ADDED: Verify tenant ownership
 
       if (error) throw error;
 
