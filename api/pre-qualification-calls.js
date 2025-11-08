@@ -2,6 +2,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
@@ -13,8 +14,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Tenant-ID');
+  
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -24,12 +25,23 @@ module.exports = async (req, res) => {
   }
 
   try {
-    console.log('[Pre-Qual Calls API] Fetching all pre-qualification calls...');
+    // Extract tenant_id from request
+    const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
 
-    // Fetch all pre-qual calls with contact information
+    if (!tenantId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tenant ID required'
+      });
+    }
+
+    console.log('[Pre-Qual Calls API] Fetching pre-qualification calls for tenant:', tenantId);
+
+    // Fetch all pre-qual calls with contact information, filtered by tenant
     const { data: calls, error: callsError } = await supabase
       .from('pre_qualification_calls')
       .select('*, contacts(*)')
+      .eq('tenant_id', tenantId)  // ← ADDED: Filter by tenant
       .order('created_at', { ascending: false });
 
     if (callsError) {
@@ -83,7 +95,7 @@ module.exports = async (req, res) => {
       }
     };
 
-    console.log('[Pre-Qual Calls API] ✅ Fetched', transformedCalls.length, 'calls');
+    console.log('[Pre-Qual Calls API] ✅ Fetched', transformedCalls.length, 'calls for tenant:', tenantId);
 
     return res.status(200).json({
       success: true,
