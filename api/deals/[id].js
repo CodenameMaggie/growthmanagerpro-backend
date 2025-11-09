@@ -7,14 +7,16 @@ const supabase = createClient(
 );
 
 module.exports = async (req, res) => {
-  // CORS headers
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Tenant-ID');
+  
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
+  
+  // ... rest of your code
 
   // Extract tenant_id
   const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
