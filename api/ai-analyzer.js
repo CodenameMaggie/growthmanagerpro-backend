@@ -464,12 +464,12 @@ try {
     console.log('[Discovery Analysis] ✅ Strategy invitation sent via SmartLead');
   } else {
     console.error('[Discovery Analysis] ❌ SmartLead failed:', emailResult.error);
-  }
-} catch (emailError) {
+  } catch (emailError) {
   console.error('[Discovery Analysis] ❌ Email error:', emailError);
 }
-      
-
+     }  
+   }
+    
     // Handle review/nurture cases
     if (requiresReview) {
       console.log('[Discovery Analysis] ⚠️ REVIEW NEEDED');
@@ -915,20 +915,6 @@ async function sendDiscoveryInvitation(discoveryCallId) {
       })
     });
 
-    const result = await response.json();
-    
-    if (result.success) {
-      console.log('[Podcast Analysis] ✅ Discovery invitation sent via SmartLead');
-    } else {
-      console.error('[Podcast Analysis] ⚠️ SmartLead failed:', result.error);
-    }
-
-    return result;
-  } catch (error) {
-    console.error('[Podcast Analysis] Error sending invitation:', error);
-    return { success: false, error: error.message };
-  }
-}
 
     const result = await response.json();
     
