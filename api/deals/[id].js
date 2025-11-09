@@ -1,36 +1,49 @@
+// /api/deals/[id].js - Get single deal by ID
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 module.exports = async (req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Get ID from query params
+  // Extract tenant_id
+  const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+  
+  if (!tenantId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Tenant ID required'
+    });
+  }
+
+  // Get deal ID from URL
   const { id } = req.query;
 
   if (!id) {
     return res.status(400).json({
       success: false,
-      error: 'Deal ID is required'
+      error: 'Deal ID required'
     });
   }
 
+  // GET - Fetch single deal
   if (req.method === 'GET') {
     try {
       const { data, error } = await supabase
-        .from('contacts')
+        .from('deals')
         .select('*')
         .eq('id', id)
+        .eq('tenant_id', tenantId)
         .single();
 
       if (error) throw error;
@@ -44,11 +57,11 @@ module.exports = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        data: data
+        deal: data
       });
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching deal:', error);
       return res.status(500).json({
         success: false,
         error: error.message
@@ -56,63 +69,32 @@ module.exports = async (req, res) => {
     }
   }
 
+  // PUT - Update deal
   if (req.method === 'PUT') {
     try {
-      const { 
-        name, 
-        company, 
-        email,
-        contract_value,
-        payment_model,
-        current_phase,
-        progress_percentage,
-        systems_delivered,
-        leads_generated,
-        revenue_generated,
-        roi,
-        status
-      } = req.body;
+      const updates = req.body;
 
-      const updateData = {
-        updated_at: new Date().toISOString()
-      };
-      
-      if (name) updateData.name = name;
-      if (company !== undefined) updateData.company = company;
-      if (email) updateData.email = email;
-      if (contract_value !== undefined) updateData.contract_value = contract_value;
-      if (payment_model) updateData.payment_model = payment_model;
-      if (current_phase) updateData.current_phase = current_phase;
-      if (progress_percentage !== undefined) updateData.progress_percentage = progress_percentage;
-      if (systems_delivered) updateData.systems_delivered = systems_delivered;
-      if (leads_generated !== undefined) updateData.leads_generated = leads_generated;
-      if (revenue_generated !== undefined) updateData.revenue_generated = revenue_generated;
-      if (roi !== undefined) updateData.roi = roi;
-      if (status) updateData.status = status;
+      // Remove tenant_id and id from updates (shouldn't be changed)
+      delete updates.tenant_id;
+      delete updates.id;
 
       const { data, error } = await supabase
-        .from('contacts')
-        .update(updateData)
+        .from('deals')
+        .update(updates)
         .eq('id', id)
-        .select();
+        .eq('tenant_id', tenantId)
+        .select()
+        .single();
 
       if (error) throw error;
 
-      if (!data || data.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: 'Deal not found'
-        });
-      }
-
       return res.status(200).json({
         success: true,
-        data: data[0],
-        message: 'Deal updated successfully'
+        deal: data
       });
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error updating deal:', error);
       return res.status(500).json({
         success: false,
         error: error.message
@@ -120,22 +102,24 @@ module.exports = async (req, res) => {
     }
   }
 
+  // DELETE - Delete deal
   if (req.method === 'DELETE') {
     try {
       const { error } = await supabase
-        .from('contacts')
+        .from('deals')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('tenant_id', tenantId);
 
       if (error) throw error;
 
       return res.status(200).json({
         success: true,
-        message: 'Deal deleted successfully'
+        message: 'Deal deleted'
       });
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error deleting deal:', error);
       return res.status(500).json({
         success: false,
         error: error.message
