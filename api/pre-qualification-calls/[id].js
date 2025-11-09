@@ -14,6 +14,16 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  // Extract tenant_id
+  const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+  
+  if (!tenantId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Tenant ID required'
+    });
+  }
+
   // Get ID from query params
   const { id } = req.query;
 
@@ -30,6 +40,7 @@ module.exports = async (req, res) => {
         .from('pre_qualification_calls')
         .select('*')
         .eq('id', id)
+        .eq('tenant_id', tenantId)  // ← ADDED: Filter by tenant
         .single();
 
       if (error) throw error;
@@ -82,6 +93,7 @@ module.exports = async (req, res) => {
         .from('pre_qualification_calls')
         .update(updateData)
         .eq('id', id)
+        .eq('tenant_id', tenantId)  // ← ADDED: Filter by tenant
         .select();
 
       if (error) throw error;
@@ -101,10 +113,12 @@ module.exports = async (req, res) => {
         console.log(`[Pre-Qual] Contact scored ${ai_score} - Triggering Smartlead handoff`);
         
         // Get the contact_id associated with this pre-qual call
+        // (Already filtered by tenant_id, so this is secure)
         const { data: preQualCall, error: callError } = await supabase
           .from('pre_qualification_calls')
           .select('contact_id')
           .eq('id', id)
+          .eq('tenant_id', tenantId)  // ← ADDED: Verify tenant ownership
           .single();
         
         if (callError) {
@@ -174,7 +188,8 @@ module.exports = async (req, res) => {
       const { error } = await supabase
         .from('pre_qualification_calls')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('tenant_id', tenantId);  // ← ADDED: Filter by tenant
 
       if (error) throw error;
 
