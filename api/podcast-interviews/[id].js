@@ -2,17 +2,26 @@ const { createClient } = require('@supabase/supabase-js');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 module.exports = async (req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Tenant-ID');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  // Extract tenant_id
+  const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+  
+  if (!tenantId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Tenant ID required'
+    });
   }
 
   // Get ID from query params
@@ -31,6 +40,7 @@ module.exports = async (req, res) => {
         .from('podcast_interviews')
         .select('*')
         .eq('id', id)
+        .eq('tenant_id', tenantId)  // ← ADDED: Filter by tenant
         .single();
 
       if (error) throw error;
@@ -46,7 +56,6 @@ module.exports = async (req, res) => {
         success: true,
         data: data
       });
-
     } catch (error) {
       console.error('Error:', error);
       return res.status(500).json({
@@ -86,6 +95,7 @@ module.exports = async (req, res) => {
         .from('podcast_interviews')
         .update(updateData)
         .eq('id', id)
+        .eq('tenant_id', tenantId)  // ← ADDED: Filter by tenant
         .select();
 
       if (error) throw error;
@@ -102,7 +112,6 @@ module.exports = async (req, res) => {
         data: data[0],
         message: 'Interview updated successfully'
       });
-
     } catch (error) {
       console.error('Error:', error);
       return res.status(500).json({
@@ -117,7 +126,8 @@ module.exports = async (req, res) => {
       const { error } = await supabase
         .from('podcast_interviews')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('tenant_id', tenantId);  // ← ADDED: Filter by tenant
 
       if (error) throw error;
 
@@ -125,7 +135,6 @@ module.exports = async (req, res) => {
         success: true,
         message: 'Interview deleted successfully'
       });
-
     } catch (error) {
       console.error('Error:', error);
       return res.status(500).json({
