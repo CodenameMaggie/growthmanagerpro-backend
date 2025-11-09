@@ -9,7 +9,7 @@ module.exports = async (req, res) => {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Tenant-ID');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
 
   // Get ID from query params
   const { id } = req.query;
-
+  
   if (!id) {
     return res.status(400).json({
       success: false,
@@ -25,12 +25,24 @@ module.exports = async (req, res) => {
     });
   }
 
+  // Extract tenant_id from request
+  const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+  if (!tenantId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Tenant ID required'
+    });
+  }
+
+  // ==================== GET - Read single strategy call ====================
   if (req.method === 'GET') {
     try {
       const { data, error } = await supabase
         .from('strategy_calls')
         .select('*')
         .eq('id', id)
+        .eq('tenant_id', tenantId)  // ← ADDED: Verify tenant ownership
         .single();
 
       if (error) throw error;
@@ -38,7 +50,7 @@ module.exports = async (req, res) => {
       if (!data) {
         return res.status(404).json({
           success: false,
-          error: 'Call not found'
+          error: 'Call not found or access denied'
         });
       }
 
@@ -48,7 +60,7 @@ module.exports = async (req, res) => {
       });
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('[Strategy Call [id]] GET Error:', error);
       return res.status(500).json({
         success: false,
         error: error.message
@@ -56,6 +68,7 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ==================== PUT - Update single strategy call ====================
   if (req.method === 'PUT') {
     try {
       const { 
@@ -90,6 +103,7 @@ module.exports = async (req, res) => {
         .from('strategy_calls')
         .update(updateData)
         .eq('id', id)
+        .eq('tenant_id', tenantId)  // ← ADDED: Verify tenant ownership
         .select();
 
       if (error) throw error;
@@ -97,7 +111,7 @@ module.exports = async (req, res) => {
       if (!data || data.length === 0) {
         return res.status(404).json({
           success: false,
-          error: 'Call not found'
+          error: 'Call not found or access denied'
         });
       }
 
@@ -108,7 +122,7 @@ module.exports = async (req, res) => {
       });
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('[Strategy Call [id]] PUT Error:', error);
       return res.status(500).json({
         success: false,
         error: error.message
@@ -116,12 +130,14 @@ module.exports = async (req, res) => {
     }
   }
 
+  // ==================== DELETE - Remove single strategy call ====================
   if (req.method === 'DELETE') {
     try {
       const { error } = await supabase
         .from('strategy_calls')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('tenant_id', tenantId);  // ← ADDED: Verify tenant ownership
 
       if (error) throw error;
 
@@ -131,7 +147,7 @@ module.exports = async (req, res) => {
       });
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('[Strategy Call [id]] DELETE Error:', error);
       return res.status(500).json({
         success: false,
         error: error.message
@@ -139,19 +155,8 @@ module.exports = async (req, res) => {
     }
   }
 
-  return res.status(405).json({ error: 'Method not allowed' });
+  return res.status(405).json({ 
+    success: false,
+    error: 'Method not allowed' 
+  });
 };
-```
-
----
-
-## ✅ **Checklist:**
-```
-☐ 1. Create users/[id].js
-☐ 2. Create deals/[id].js
-☐ 3. Create pre-qualification-calls/[id].js
-☐ 4. Create podcast-interviews/[id].js
-☐ 5. Create discovery-calls/[id].js
-☐ 6. Create strategy-calls/[id].js
-☐ 7. Wait for Vercel to deploy (30-60 seconds after each commit)
-☐ 8. Test editing on each page!
