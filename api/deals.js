@@ -8,7 +8,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Tenant-ID');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -17,9 +17,20 @@ module.exports = async (req, res) => {
   // ==================== GET - Read all client deals/contracts ====================
   if (req.method === 'GET') {
     try {
+      // Extract tenant_id
+      const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+      
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Tenant ID required'
+        });
+      }
+
       const { data, error } = await supabase
         .from('deals')
         .select('*')
+        .eq('tenant_id', tenantId)  // ← ADDED: Filter by tenant
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -89,6 +100,16 @@ module.exports = async (req, res) => {
   // ==================== POST - Create new client deal/contract ====================
   if (req.method === 'POST') {
     try {
+      // Extract tenant_id
+      const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+      
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Tenant ID required'
+        });
+      }
+
       const { 
         clientName, 
         company, 
@@ -132,6 +153,7 @@ module.exports = async (req, res) => {
       const { data, error } = await supabase
         .from('deals')
         .insert([{
+          tenant_id: tenantId,  // ← ADDED: Set tenant_id
           client_name: clientName,
           company: company || null,
           contract_value: contractValue || 0,
@@ -186,6 +208,16 @@ module.exports = async (req, res) => {
   // ==================== PUT - Update existing client deal/contract ====================
   if (req.method === 'PUT') {
     try {
+      // Extract tenant_id
+      const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+      
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Tenant ID required'
+        });
+      }
+
       const { 
         id, 
         clientName, 
@@ -246,6 +278,7 @@ module.exports = async (req, res) => {
         .from('deals')
         .update(updateData)
         .eq('id', id)
+        .eq('tenant_id', tenantId)  // ← ADDED: Verify tenant ownership
         .select()
         .single();
 
@@ -254,7 +287,7 @@ module.exports = async (req, res) => {
       if (!data) {
         return res.status(404).json({
           success: false,
-          error: 'Deal not found'
+          error: 'Deal not found or access denied'
         });
       }
 
@@ -294,6 +327,16 @@ module.exports = async (req, res) => {
   // ==================== DELETE - Remove client deal/contract ====================
   if (req.method === 'DELETE') {
     try {
+      // Extract tenant_id
+      const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+      
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Tenant ID required'
+        });
+      }
+
       const { id } = req.body;
 
       if (!id) {
@@ -306,7 +349,8 @@ module.exports = async (req, res) => {
       const { error } = await supabase
         .from('deals')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('tenant_id', tenantId);  // ← ADDED: Verify tenant ownership
 
       if (error) throw error;
 
