@@ -468,15 +468,7 @@ try {
 } catch (emailError) {
   console.error('[Discovery Analysis] ❌ Email error:', emailError);
 }
-        
-          if (emailResponse.ok) {
-            emailSent = true;
-            console.log('[Discovery Analysis] ✅ Strategy invitation sent');
-        } catch (emailError) {
-          console.error('[Discovery Analysis] ❌ Email error:', emailError);
-        }
-      }
-    }
+      
 
     // Handle review/nurture cases
     if (requiresReview) {
