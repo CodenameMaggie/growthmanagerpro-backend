@@ -84,6 +84,19 @@ module.exports = async (req, res) => {
       });
     }
 
+    // Check if invited_by is a consultant
+    let consultantId = null;
+    if (invitation.invited_by) {
+      const { data: inviter } = await supabase
+        .from('users')
+        .select('id, role')
+        .eq('id', invitation.invited_by)
+        .single();
+      
+      if (inviter && inviter.role === 'consultant') {
+        consultantId = inviter.id;
+      }
+    }
     console.log('[Signup Invited] Creating user account');
 
     // Create user - ONLY fields that exist in the database
@@ -94,6 +107,7 @@ module.exports = async (req, res) => {
         full_name: full_name,
         password: password, // Plain text to match login.js
         role: invitation.role,
+        consultant_id: consultantId,
         status: invitation.role === 'advisor' ? 'pending' : 'active',
         user_type: invitation.role,
         tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', // Default tenant
