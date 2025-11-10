@@ -115,7 +115,7 @@ module.exports = async (req, res) => {
         role: 'consultant',
         user_type: 'consultant',
         status: 'active',
-        permissions: ['advisor-dashboard.view'], // Consultant permissions
+        permissions: ['consultant-dashboard.view'], // Consultant permissions
         stripe_customer_id: customer.id,
         stripe_subscription_id: subscription.id,
         subscription_tier: tier,
@@ -161,7 +161,7 @@ module.exports = async (req, res) => {
         permissions: newUser.permissions,
         tier: tier,
         trialEndsAt: newUser.trial_ends_at,
-        redirectTo: 'advisor-dashboard.html'
+        redirectTo: 'consultant-dashboard.html'
       },
       token: 'demo-token-' + newUser.id,
       message: 'Account created successfully! Your 14-day free trial starts now.'
