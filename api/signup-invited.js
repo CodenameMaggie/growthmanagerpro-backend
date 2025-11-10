@@ -7,7 +7,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Tenant-ID');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -110,7 +110,7 @@ module.exports = async (req, res) => {
         consultant_id: consultantId,
         status: invitation.role === 'advisor' ? 'pending' : 'active',
         user_type: invitation.role,
-        tenant_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', // Default tenant
+        tenant_id: invitation.tenant_id,  // ✅ Use tenant from invitation
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }])
@@ -145,10 +145,14 @@ if (newUser.role === 'admin' || newUser.role === 'saas') {
   redirectTo = '/dashboard.html';
   userType = 'admin';
   permissions = 'all';
-} else if (newUser.role === 'advisor' || newUser.role === 'consultant') {
+else if (newUser.role === 'advisor') {
   redirectTo = '/advisor-dashboard.html';
   userType = 'advisor';
   permissions = ['advisor-dashboard.view'];
+} else if (newUser.role === 'consultant') {
+  redirectTo = '/consultant-dashboard.html';  // ✅ Separate redirect
+  userType = 'consultant';
+  permissions = ['consultant-dashboard.view'];
 } else if (newUser.role === 'client') {
   redirectTo = '/client-dashboard.html';
   userType = 'client';
