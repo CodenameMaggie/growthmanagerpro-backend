@@ -115,7 +115,7 @@ module.exports = async (req, res) => {
         role: 'consultant',
         user_type: 'consultant',
         status: 'active',
-        permissions: ['dashboard.view'], // Consultant permissions
+        permissions: ['advisor-dashboard.view'], // Consultant permissions
         stripe_customer_id: customer.id,
         stripe_subscription_id: subscription.id,
         subscription_tier: tier,
