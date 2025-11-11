@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposals - Growth Manager Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3498db;
+            --primary-dark: #2980b9;
+            --secondary: #2c3e50;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --white: #ffffff;
+            --shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            min-height: 100vh;
+            color: var(--dark);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 280px;
+            height: 100vh;
+            background: var(--white);
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #7f8c8d;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--white);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: #7f8c8d;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        /* Controls */
+        .controls {
+            background: var(--white);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--light);
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(52, 152, 219, 0.4);
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--light);
+            background: var(--white);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.875rem;
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: var(--white);
+            border-color: var(--primary);
+        }
+
+        /* Proposals Grid */
+        .proposals-grid {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .proposal-card {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary);
+            transition: all 0.3s ease;
+        }
+
+        .proposal-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+
+        .proposal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 1.5rem;
+        }
+
+        .proposal-title {
+            flex: 1;
+        }
+
+        .proposal-title h3 {
+            font-size: 1.5rem;
+            color: var(--dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .proposal-title .company {
+            color: #7f8c8d;
+            font-size: 0.875rem;
+        }
+
+        .proposal-number {
+            font-size: 0.75rem;
+            color: var(--primary);
+            font-weight: 600;
+            margin-top: 0.25rem;
+        }
+
+        .proposal-value {
+            text-align: right;
+        }
+
+        .proposal-value .amount {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .proposal-value .type {
+            font-size: 0.75rem;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-top: 0.5rem;
+        }
+
+        .status-draft {
+            background: #ecf0f1;
+            color: #7f8c8d;
+        }
+
+        .status-ready {
+            background: #dbeafe;
+            color: #2e86de;
+        }
+
+        .status-sent {
+            background: #ffeaa7;
+            color: #fdcb6e;
+        }
+
+        .status-viewed {
+            background: #e8daef;
+            color: #9b59b6;
+        }
+
+        .status-accepted {
+            background: #d4f4dd;
+            color: var(--success);
+        }
+
+        .status-rejected {
+            background: #fef2f2;
+            color: var(--danger);
+        }
+
+        .status-expired {
+            background: #f8f9fa;
+            color: #95a5a6;
+        }
+
+        .status-negotiating {
+            background: #fff3cd;
+            color: var(--warning);
+        }
+
+        /* Proposal Details */
+        .proposal-details {
+            margin: 1.5rem 0;
+            padding-top: 1rem;
+            border-top: 2px solid var(--light);
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .detail-label {
+            color: #7f8c8d;
+            font-weight: 600;
+        }
+
+        .detail-value {
+            color: var(--dark);
+        }
+
+        /* Actions */
+        .proposal-actions {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid var(--light);
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 0.75rem;
+            border: 2px solid var(--light);
+            background: var(--white);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-action:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-action.danger:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            color: var(--dark);
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: var(--primary);
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #7f8c8d;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #7f8c8d;
+        }
+
+        .empty-state h3 {
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .filter-group {
+                width: 100%;
+            }
+
+            .filter-btn {
+                flex: 1;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <div class="header">
+            <h1>Proposals</h1>
+            <p>Track quotes, proposals, and conversion from strategy calls to active deals</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Proposals</div>
+                <div class="stat-value" id="totalProposals">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Sent Proposals</div>
+                <div class="stat-value" id="sentProposals" style="color: #f39c12;">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Accepted</div>
+                <div class="stat-value" id="acceptedProposals" style="color: #27ae60;">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Value</div>
+                <div class="stat-value" id="totalValue">$0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Win Rate</div>
+                <div class="stat-value" id="winRate" style="color: #27ae60;">0%</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search proposals...">
+            </div>
+            <div class="filter-group">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="draft">Draft</button>
+                <button class="filter-btn" data-filter="sent">Sent</button>
+                <button class="filter-btn" data-filter="accepted">Accepted</button>
+                <button class="filter-btn" data-filter="rejected">Rejected</button>
+            </div>
+            <button class="btn btn-primary" onclick="openAddModal()">+ New Proposal</button>
+        </div>
+
+        <!-- Proposals Grid -->
+        <div class="proposals-grid" id="proposalsGrid">
+            <div class="loading">Loading proposals...</div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Proposal Modal -->
+    <div id="proposalModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Create New Proposal</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="proposalForm" onsubmit="saveProposal(event)">
+                <div class="form-group">
+                    <label>Prospect Name *</label>
+                    <input type="text" id="prospectName" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="email">
+                    </div>
+                    <div class="form-group">
+                        <label>Company</label>
+                        <input type="text" id="company">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="tel" id="phone">
+                    </div>
+                    <div class="form-group">
+                        <label>Proposal Title</label>
+                        <input type="text" id="proposalTitle" value="Growth Management Proposal">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Scope of Work</label>
+                    <textarea id="scopeOfWork"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Pricing Model</label>
+                        <select id="pricingModel">
+                            <option value="monthly_retainer">Monthly Retainer</option>
+                            <option value="project_based">Project Based</option>
+                            <option value="performance_based">Performance Based</option>
+                            <option value="hybrid">Hybrid</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Recommended Tier</label>
+                        <select id="recommendedTier">
+                            <option value="">Select Tier</option>
+                            <option value="foundations">Strategic Foundations</option>
+                            <option value="growth">Growth Architecture</option>
+                            <option value="scale">Scale Partnership</option>
+                            <option value="enterprise">Enterprise Alliance</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Total Contract Value</label>
+                        <input type="number" id="totalContractValue" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Monthly Fee</label>
+                        <input type="number" id="monthlyFee" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Setup Fee</label>
+                        <input type="number" id="setupFee" step="0.01" value="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Payment Terms</label>
+                        <input type="text" id="paymentTerms" value="Net 30">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Timeline</label>
+                        <input type="text" id="timeline" placeholder="e.g., 6 months, Q1 2024">
+                    </div>
+                    <div class="form-group">
+                        <label>Valid Until</label>
+                        <input type="date" id="validUntil">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="status">
+                            <option value="draft">Draft</option>
+                            <option value="ready">Ready</option>
+                            <option value="sent">Sent</option>
+                            <option value="viewed">Viewed</option>
+                            <option value="negotiating">Negotiating</option>
+                            <option value="accepted">Accepted</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="expired">Expired</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Follow-up Date</label>
+                        <input type="date" id="followUpDate">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Proposal URL</label>
+                    <input type="url" id="proposalUrl" placeholder="Link to PDF or external proposal">
+                </div>
+
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="notes"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Internal Notes</label>
+                    <textarea id="internalNotes"></textarea>
+                </div>
+
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Save Proposal</button>
+                    <button type="button" class="btn" style="flex: 1; background: #95a5a6; color: white;" onclick="closeModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="auth-helper.js"></script>
+    <script src="/nav.js"></script>
+
+    <script>
+        // AUTHENTICATION
+        (function() {
+            if (!AuthHelper.protectPage('proposals.html')) {
+                throw new Error('Unauthorized access');
+            }
+            AuthHelper.applyPermissions();
+        })();
+
+        // API Configuration
+        const API_BASE = 'https://app.growthmanagerpro.com';
+        let currentTenantId = null;
+
+        // State
+        let proposalsData = [];
+        let filteredProposals = [];
+        let editingProposalId = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProposals();
+            setupFilters();
+            setupSearch();
+        });
+
+        async function loadProposals() {
+            try {
+                // Initialize tenant context
+                if (!currentTenantId) {
+                    await AuthHelper.initTenant();
+                    currentTenantId = AuthHelper.getTenantId();
+
+                    if (!currentTenantId) {
+                        console.error('[Proposals] No tenant ID found');
+                        alert('Session error. Please refresh the page.');
+                        return;
+                    }
+                }
+
+                console.log('[Proposals] Loading proposals from API...');
+                console.log('[Proposals] Tenant ID:', currentTenantId);
+
+                const response = await fetch(`${API_BASE}/api/proposals?tenant_id=${currentTenantId}`);
+
+                if (!response.ok) throw new Error('Failed to load proposals');
+
+                const result = await response.json();
+                proposalsData = result.proposals || [];
+                filteredProposals = [...proposalsData];
+
+                renderProposals(filteredProposals);
+                updateStats(proposalsData);
+
+                console.log('[Proposals] ✅ Loaded', proposalsData.length, 'proposals');
+
+            } catch (error) {
+                console.error('[Proposals] Error loading proposals:', error);
+                document.getElementById('proposalsGrid').innerHTML = '<div class="loading">Error loading proposals. Please refresh.</div>';
+            }
+        }
+
+        function renderProposals(proposals) {
+            const grid = document.getElementById('proposalsGrid');
+
+            if (proposals.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No proposals found</h3>
+                        <p>Create your first proposal to track the sales pipeline</p>
+                        <button class="btn btn-primary" onclick="openAddModal()" style="margin-top: 1rem;">+ Create Proposal</button>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = proposals.map(proposal => `
+                <div class="proposal-card">
+                    <div class="proposal-header">
+                        <div class="proposal-title">
+                            <h3>${proposal.prospect_name}</h3>
+                            <div class="company">${proposal.company || 'No company'}</div>
+                            <div class="proposal-number">${proposal.proposal_number || 'Draft'}</div>
+                            <span class="status-badge status-${proposal.status}">${proposal.status}</span>
+                        </div>
+                        <div class="proposal-value">
+                            <div class="amount">$${formatNumber(proposal.total_contract_value || 0)}</div>
+                            <div class="type">${proposal.pricing_model || 'N/A'}</div>
+                        </div>
+                    </div>
+
+                    <div class="proposal-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Proposal Title:</span>
+                            <span class="detail-value">${proposal.proposal_title || 'N/A'}</span>
+                        </div>
+                        ${proposal.monthly_fee ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Monthly Fee:</span>
+                            <span class="detail-value">$${formatNumber(proposal.monthly_fee)}</span>
+                        </div>
+                        ` : ''}
+                        ${proposal.recommended_tier ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Recommended Tier:</span>
+                            <span class="detail-value">${formatTier(proposal.recommended_tier)}</span>
+                        </div>
+                        ` : ''}
+                        ${proposal.timeline ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Timeline:</span>
+                            <span class="detail-value">${proposal.timeline}</span>
+                        </div>
+                        ` : ''}
+                        ${proposal.valid_until ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Valid Until:</span>
+                            <span class="detail-value">${formatDate(proposal.valid_until)}</span>
+                        </div>
+                        ` : ''}
+                        ${proposal.sent_at ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Sent:</span>
+                            <span class="detail-value">${formatDate(proposal.sent_at)}</span>
+                        </div>
+                        ` : ''}
+                        ${proposal.viewed_at ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Viewed:</span>
+                            <span class="detail-value">${formatDate(proposal.viewed_at)} (${proposal.view_count || 0} times)</span>
+                        </div>
+                        ` : ''}
+                        ${proposal.accepted_at ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Accepted:</span>
+                            <span class="detail-value">${formatDate(proposal.accepted_at)}</span>
+                        </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="proposal-actions">
+                        ${proposal.proposal_url ? `
+                            <button class="btn-action" onclick="window.open('${proposal.proposal_url}', '_blank')">View Proposal</button>
+                        ` : ''}
+                        <button class="btn-action" onclick="editProposal('${proposal.id}')">Edit</button>
+                        <button class="btn-action" onclick="duplicateProposal('${proposal.id}')">Duplicate</button>
+                        <button class="btn-action danger" onclick="deleteProposal('${proposal.id}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStats(proposals) {
+            const total = proposals.length;
+            const sent = proposals.filter(p => ['sent', 'viewed', 'accepted', 'negotiating'].includes(p.status)).length;
+            const accepted = proposals.filter(p => p.status === 'accepted').length;
+            const totalValue = proposals.reduce((sum, p) => sum + (parseFloat(p.total_contract_value) || 0), 0);
+
+            // Calculate win rate (accepted / (accepted + rejected))
+            const rejected = proposals.filter(p => p.status === 'rejected').length;
+            const decided = accepted + rejected;
+            const winRate = decided > 0 ? ((accepted / decided) * 100).toFixed(0) : 0;
+
+            document.getElementById('totalProposals').textContent = total;
+            document.getElementById('sentProposals').textContent = sent;
+            document.getElementById('acceptedProposals').textContent = accepted;
+            document.getElementById('totalValue').textContent = '$' + formatNumber(totalValue);
+            document.getElementById('winRate').textContent = winRate + '%';
+        }
+
+        function setupFilters() {
+            const filterBtns = document.querySelectorAll('.filter-btn');
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    filterBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    const filter = btn.dataset.filter;
+                    filterProposals(filter);
+                });
+            });
+        }
+
+        function filterProposals(filter) {
+            if (filter === 'all') {
+                filteredProposals = [...proposalsData];
+            } else {
+                filteredProposals = proposalsData.filter(proposal => proposal.status === filter);
+            }
+            renderProposals(filteredProposals);
+        }
+
+        function setupSearch() {
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                filteredProposals = proposalsData.filter(proposal =>
+                    (proposal.prospect_name && proposal.prospect_name.toLowerCase().includes(query)) ||
+                    (proposal.company && proposal.company.toLowerCase().includes(query)) ||
+                    (proposal.proposal_number && proposal.proposal_number.toLowerCase().includes(query))
+                );
+                renderProposals(filteredProposals);
+            });
+        }
+
+        function openAddModal() {
+            editingProposalId = null;
+            document.getElementById('modalTitle').textContent = 'Create New Proposal';
+            document.getElementById('proposalForm').reset();
+            document.getElementById('proposalModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('proposalModal').style.display = 'none';
+            editingProposalId = null;
+        }
+
+        async function editProposal(id) {
+            const proposal = proposalsData.find(p => p.id === id);
+            if (!proposal) return;
+
+            editingProposalId = id;
+            document.getElementById('modalTitle').textContent = 'Edit Proposal';
+
+            // Populate form
+            document.getElementById('prospectName').value = proposal.prospect_name || '';
+            document.getElementById('email').value = proposal.email || '';
+            document.getElementById('company').value = proposal.company || '';
+            document.getElementById('phone').value = proposal.phone || '';
+            document.getElementById('proposalTitle').value = proposal.proposal_title || '';
+            document.getElementById('scopeOfWork').value = proposal.scope_of_work || '';
+            document.getElementById('pricingModel').value = proposal.pricing_model || 'monthly_retainer';
+            document.getElementById('recommendedTier').value = proposal.recommended_tier || '';
+            document.getElementById('totalContractValue').value = proposal.total_contract_value || '';
+            document.getElementById('monthlyFee').value = proposal.monthly_fee || '';
+            document.getElementById('setupFee').value = proposal.setup_fee || 0;
+            document.getElementById('paymentTerms').value = proposal.payment_terms || 'Net 30';
+            document.getElementById('timeline').value = proposal.timeline || '';
+            document.getElementById('validUntil').value = proposal.valid_until || '';
+            document.getElementById('status').value = proposal.status || 'draft';
+            document.getElementById('followUpDate').value = proposal.follow_up_date || '';
+            document.getElementById('proposalUrl').value = proposal.proposal_url || '';
+            document.getElementById('notes').value = proposal.notes || '';
+            document.getElementById('internalNotes').value = proposal.internal_notes || '';
+
+            document.getElementById('proposalModal').style.display = 'flex';
+        }
+
+        async function saveProposal(event) {
+            event.preventDefault();
+
+            const proposalData = {
+                prospect_name: document.getElementById('prospectName').value,
+                email: document.getElementById('email').value,
+                company: document.getElementById('company').value,
+                phone: document.getElementById('phone').value,
+                proposal_title: document.getElementById('proposalTitle').value,
+                scope_of_work: document.getElementById('scopeOfWork').value,
+                pricing_model: document.getElementById('pricingModel').value,
+                recommended_tier: document.getElementById('recommendedTier').value,
+                total_contract_value: parseFloat(document.getElementById('totalContractValue').value) || null,
+                monthly_fee: parseFloat(document.getElementById('monthlyFee').value) || null,
+                setup_fee: parseFloat(document.getElementById('setupFee').value) || 0,
+                payment_terms: document.getElementById('paymentTerms').value,
+                timeline: document.getElementById('timeline').value,
+                valid_until: document.getElementById('validUntil').value || null,
+                status: document.getElementById('status').value,
+                follow_up_date: document.getElementById('followUpDate').value || null,
+                proposal_url: document.getElementById('proposalUrl').value,
+                notes: document.getElementById('notes').value,
+                internal_notes: document.getElementById('internalNotes').value
+            };
+
+            try {
+                const url = editingProposalId
+                    ? `${API_BASE}/api/proposals?id=${editingProposalId}&tenant_id=${currentTenantId}`
+                    : `${API_BASE}/api/proposals?tenant_id=${currentTenantId}`;
+
+                const method = editingProposalId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Tenant-ID': currentTenantId
+                    },
+                    body: JSON.stringify(proposalData)
+                });
+
+                if (!response.ok) throw new Error('Failed to save proposal');
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(editingProposalId ? 'Proposal updated successfully!' : 'Proposal created successfully!');
+                    closeModal();
+                    loadProposals();
+                } else {
+                    throw new Error(result.error || 'Failed to save proposal');
+                }
+            } catch (error) {
+                console.error('Error saving proposal:', error);
+                alert('Error saving proposal. Please try again.');
+            }
+        }
+
+        async function duplicateProposal(id) {
+            const proposal = proposalsData.find(p => p.id === id);
+            if (!proposal || !confirm('Create a copy of this proposal?')) return;
+
+            const proposalData = {
+                prospect_name: proposal.prospect_name + ' (Copy)',
+                email: proposal.email,
+                company: proposal.company,
+                phone: proposal.phone,
+                proposal_title: proposal.proposal_title,
+                scope_of_work: proposal.scope_of_work,
+                pricing_model: proposal.pricing_model,
+                recommended_tier: proposal.recommended_tier,
+                total_contract_value: proposal.total_contract_value,
+                monthly_fee: proposal.monthly_fee,
+                setup_fee: proposal.setup_fee,
+                payment_terms: proposal.payment_terms,
+                timeline: proposal.timeline,
+                status: 'draft',
+                notes: proposal.notes,
+                internal_notes: proposal.internal_notes
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/api/proposals?tenant_id=${currentTenantId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Tenant-ID': currentTenantId
+                    },
+                    body: JSON.stringify(proposalData)
+                });
+
+                if (!response.ok) throw new Error('Failed to duplicate proposal');
+
+                alert('Proposal duplicated successfully!');
+                loadProposals();
+            } catch (error) {
+                console.error('Error duplicating proposal:', error);
+                alert('Error duplicating proposal. Please try again.');
+            }
+        }
+
+        async function deleteProposal(id) {
+            if (!confirm('Are you sure you want to delete this proposal? This action cannot be undone.')) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/proposals?id=${id}&tenant_id=${currentTenantId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-Tenant-ID': currentTenantId
+                    }
+                });
+
+                if (!response.ok) throw new Error('Failed to delete proposal');
+
+                alert('Proposal deleted successfully!');
+                loadProposals();
+            } catch (error) {
+                console.error('Error deleting proposal:', error);
+                alert('Error deleting proposal. Please try again.');
+            }
+        }
+
+        // Helper Functions
+        function formatNumber(num) {
+            return parseFloat(num).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function formatTier(tier) {
+            const tiers = {
+                'foundations': 'Strategic Foundations',
+                'growth': 'Growth Architecture',
+                'scale': 'Scale Partnership',
+                'enterprise': 'Enterprise Alliance',
+                'custom': 'Custom'
+            };
+            return tiers[tier] || tier;
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('proposalModal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+    </script>
+</body>
+</html>

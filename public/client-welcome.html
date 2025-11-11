@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome - Growth Manager Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .welcome-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 50px 40px;
+            text-align: center;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .logo {
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            font-size: 32px;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .logo p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 1s ease;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-20px); }
+            60% { transform: translateY(-10px); }
+        }
+
+        h2 {
+            font-size: 28px;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .client-name {
+            color: #3498db;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+
+        .next-steps {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .next-steps h3 {
+            color: #2c3e50;
+            font-size: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .step {
+            display: flex;
+            align-items: start;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+
+        .step:last-child {
+            margin-bottom: 0;
+        }
+
+        .step-number {
+            font-size: 24px;
+            font-weight: 700;
+            color: #3498db;
+            margin-right: 15px;
+            min-width: 30px;
+        }
+
+        .step-content h4 {
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .step-content p {
+            color: #7f8c8d;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .info-box {
+            background: #e8f4f8;
+            border: 2px solid #3498db;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .info-box h4 {
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .info-box p {
+            color: #5a6c7d;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            color: #2c3e50;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #3498db;
+            border: 2px solid #3498db;
+        }
+
+        .btn-secondary:hover {
+            background: #f8f9fa;
+        }
+
+        .timeline {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .timeline h4 {
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .timeline-item {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+
+        .timeline-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .timeline-icon {
+            margin-right: 10px;
+            font-size: 18px;
+        }
+
+        @media (max-width: 600px) {
+            .welcome-container {
+                padding: 40px 25px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="welcome-container">
+        <div class="logo">
+            <h1>Growth Manager Pro</h1>
+            <p>AI Systems for Human-Led Growth</p>
+        </div>
+
+        <div class="success-icon">🎉</div>
+
+        <h2 id="welcomeMessage">Welcome!</h2>
+        <p class="subtitle">
+            Thank you for joining Growth Manager Pro. Your application has been received and is under review.
+        </p>
+
+        <div class="info-box">
+            <h4>⏰ What Happens Next</h4>
+            <p>
+                <strong>Maggie Forbes</strong> will personally review your application within <strong>24 hours</strong>. 
+                Once approved, you'll receive full access to your Client Dashboard with AI-powered systems for human-led growth.
+            </p>
+        </div>
+
+        <div class="next-steps">
+            <h3>Your Next Steps</h3>
+            
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h4>Check Your Email</h4>
+                    <p>You'll receive a confirmation email shortly with important details about your AI-powered growth systems</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h4>Approval Notification</h4>
+                    <p>Within 24 hours, you'll get an email with your client portal login and kickoff call scheduling link</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h4>Schedule Your Kickoff Call</h4>
+                    <p>Book your initial strategy session with Maggie to align on goals and begin your 90-day journey</p>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h4>Access Your Dashboard</h4>
+                    <p>Track your progress, view milestones, access resources, and communicate with Maggie</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="timeline">
+            <h4>⏱️ Expected Timeline</h4>
+            <div class="timeline-item">
+                <span class="timeline-icon">📧</span>
+                <span><strong>Now:</strong> Confirmation email sent</span>
+            </div>
+            <div class="timeline-item">
+                <span class="timeline-icon">✅</span>
+                <span><strong>Within 24h:</strong> Application approved</span>
+            </div>
+            <div class="timeline-item">
+                <span class="timeline-icon">📞</span>
+                <span><strong>Within 48h:</strong> Kickoff call scheduled</span>
+            </div>
+            <div class="timeline-item">
+                <span class="timeline-icon">🚀</span>
+                <span><strong>Within 7 days:</strong> Program begins!</span>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Get client name from URL parameter or localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        const clientName = urlParams.get('name') || localStorage.getItem('clientName');
+        
+        // Display personalized name if available
+        if (clientName) {
+            const firstName = clientName.split(' ')[0]; // Get first name only
+            document.getElementById('welcomeMessage').innerHTML = 'Welcome, <span class="client-name">' + firstName + '</span>!';
+            
+            // Clear localStorage after displaying
+            localStorage.removeItem('clientName');
+        }
+        // If no name, it just shows "Welcome!" (already set in HTML)
+    </script>
+</body>
+</html>

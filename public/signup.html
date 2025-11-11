@@ -1,0 +1,70 @@
+async function createAccount(fullName, password, email) {
+    const submitBtn = document.getElementById('submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Creating Account...';
+    
+    try {
+        // Check if there's a token in the URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        
+        let requestBody, apiEndpoint;
+        
+        if (token) {
+            // INVITED USER FLOW
+            apiEndpoint = `${API_URL}/api/signup-invited`;
+            requestBody = {
+                token: token,
+                full_name: fullName,
+                password: password
+            };
+        } else {
+            // REGULAR SIGNUP FLOW
+            apiEndpoint = `${API_URL}/api/signup`;
+            requestBody = {
+                email: email,
+                full_name: fullName,
+                password: password,
+                role: 'client' // or whatever default role
+            };
+        }
+        
+        const response = await fetch(apiEndpoint, {  // ← FIXED: Added ( after fetch
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        const result = await response.json();
+        
+        if (!result.success) {
+            showError(result.error || 'Failed to create account');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Create Account';
+            return;
+        }
+        
+        // Success! Store auth and redirect
+        localStorage.setItem('userRole', result.user.role);
+        localStorage.setItem('userId', result.user.id);
+        localStorage.setItem('authToken', result.token || 'demo-token');
+        
+        // Redirect based on role
+        const redirectMap = {
+            'admin': 'dashboard.html',
+            'advisor': 'advisor-dashboard.html',
+            'client': 'client-dashboard.html',
+            'saas': 'dashboard.html'
+        };
+        
+        window.location.href = redirectMap[result.user.role] || 'dashboard.html';
+        
+    } catch (error) {
+        console.error('Error creating account:', error);
+        showError('Failed to create account. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Account';
+    }
+}

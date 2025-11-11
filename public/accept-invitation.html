@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accept Invitation - Growth Manager Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            padding: 2.5rem 2rem;
+            text-align: center;
+            color: white;
+        }
+        .header h1 {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
+        .header p {
+            opacity: 0.9;
+            font-size: 0.95rem;
+        }
+        .content {
+            padding: 2.5rem 2rem;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 0.875rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        .required {
+            color: #e74c3c;
+            margin-left: 0.25rem;
+        }
+        .submit-btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
+        }
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+            font-size: 0.95rem;
+        }
+        .message.active {
+            display: block;
+        }
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        .info-box {
+            background: #f8f9fa;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: #5a6c7d;
+        }
+        .password-hint {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Accept Your Invitation</h1>
+            <p>Welcome to Growth Manager Pro</p>
+        </div>
+        
+        <!-- Step 1: Email Verification -->
+        <form id="verify-form" class="content">
+            <div id="message" class="message"></div>
+            
+            <div class="info-box">
+                💌 Enter the email address where you received your invitation to continue.
+            </div>
+            
+            <div class="form-group">
+                <label for="email">Email Address <span class="required">*</span></label>
+                <input type="email" id="email" required placeholder="your@email.com" autofocus>
+            </div>
+            
+            <button type="submit" class="submit-btn" id="verify-btn">
+                Continue
+            </button>
+        </form>
+        
+        <!-- Step 2: Signup Form (hidden initially) -->
+        <form id="signup-form" class="content" style="display: none;">
+            <div id="signup-message" class="message"></div>
+            
+            <div class="form-group">
+                <label for="signup-email">Email Address</label>
+                <input type="email" id="signup-email" disabled>
+            </div>
+            
+            <div class="form-group">
+                <label for="full_name">Full Name <span class="required">*</span></label>
+                <input type="text" id="full_name" required placeholder="John Smith">
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password <span class="required">*</span></label>
+                <input type="password" id="password" required placeholder="••••••••">
+                <div class="password-hint">Must be at least 8 characters</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="password_confirm">Confirm Password <span class="required">*</span></label>
+                <input type="password" id="password_confirm" required placeholder="••••••••">
+            </div>
+            
+            <button type="submit" class="submit-btn" id="signup-btn">
+                Create Account
+            </button>
+        </form>
+    </div>
+    
+    <script>
+        const API_URL = 'https://app.growthmanagerpro.com';
+        let invitationToken = null;
+        let invitationEmail = null;
+        
+        // Step 1: Verify email and get token
+        document.getElementById('verify-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const verifyBtn = document.getElementById('verify-btn');
+            const email = document.getElementById('email').value.trim();
+            
+            if (!email) {
+                showMessage('message', '❌ Please enter your email address', 'error');
+                return;
+            }
+            
+            verifyBtn.disabled = true;
+            verifyBtn.textContent = 'Verifying...';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/verify-invitation`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email: email })
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    showMessage('message', '❌ ' + (result.error || 'No invitation found for this email'), 'error');
+                    verifyBtn.disabled = false;
+                    verifyBtn.textContent = 'Continue';
+                    return;
+                }
+                
+                // Store token (hidden from user)
+                invitationToken = result.token;
+                invitationEmail = email;
+                
+                // Show signup form
+                document.getElementById('verify-form').style.display = 'none';
+                document.getElementById('signup-form').style.display = 'block';
+                document.getElementById('signup-email').value = email;
+                document.getElementById('full_name').focus();
+                
+            } catch (error) {
+                console.error('Error verifying invitation:', error);
+                showMessage('message', '❌ Failed to verify invitation. Please try again.', 'error');
+                verifyBtn.disabled = false;
+                verifyBtn.textContent = 'Continue';
+            }
+        });
+        
+        // Step 2: Complete signup
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const signupBtn = document.getElementById('signup-btn');
+            const full_name = document.getElementById('full_name').value.trim();
+            const password = document.getElementById('password').value;
+            const password_confirm = document.getElementById('password_confirm').value;
+            
+            // Validate
+            if (!full_name) {
+                showMessage('signup-message', '❌ Please enter your full name', 'error');
+                return;
+            }
+            
+            if (password.length < 8) {
+                showMessage('signup-message', '❌ Password must be at least 8 characters', 'error');
+                return;
+            }
+            
+            if (password !== password_confirm) {
+                showMessage('signup-message', '❌ Passwords do not match', 'error');
+                return;
+            }
+            
+            signupBtn.disabled = true;
+            signupBtn.textContent = '⏳ Creating Account...';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/signup-invited`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        token: invitationToken,
+                        full_name: full_name,
+                        password: password
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    showMessage('signup-message', '❌ ' + (result.error || 'Signup failed'), 'error');
+                    signupBtn.disabled = false;
+                    signupBtn.textContent = 'Create Account';
+                    return;
+                }
+                
+                // Success!
+                showMessage('signup-message', '✅ ' + result.message, 'success');
+                
+                // Store user data
+                localStorage.setItem('user', JSON.stringify(result.user));
+                localStorage.setItem('token', result.token);
+                
+                // Redirect to appropriate dashboard
+                setTimeout(() => {
+                    window.location.href = result.user.redirectTo || 'dashboard.html';
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error creating account:', error);
+                showMessage('signup-message', '❌ Failed to create account. Please try again.', 'error');
+                signupBtn.disabled = false;
+                signupBtn.textContent = 'Create Account';
+            }
+        });
+        
+        function showMessage(elementId, text, type) {
+            const messageDiv = document.getElementById(elementId);
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type} active`;
+        }
+    </script>
+</body>
+</html>
