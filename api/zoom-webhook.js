@@ -48,6 +48,26 @@ module.exports = async (req, res) => {
     // HANDLE RECORDING COMPLETED
     // ============================================
     if (event === 'recording.completed') {
+      // Validate required environment variables
+      const requiredEnvVars = {
+        'ZOOM_CLIENT_ID': process.env.ZOOM_CLIENT_ID,
+        'ZOOM_CLIENT_SECRET': process.env.ZOOM_CLIENT_SECRET,
+        'ZOOM_ACCOUNT_ID': process.env.ZOOM_ACCOUNT_ID,
+        'NEXT_PUBLIC_SUPABASE_URL': process.env.NEXT_PUBLIC_SUPABASE_URL,
+        'SUPABASE_SERVICE_ROLE_KEY': process.env.SUPABASE_SERVICE_ROLE_KEY
+      };
+
+      const missingVars = Object.keys(requiredEnvVars).filter(key => !requiredEnvVars[key]);
+
+      if (missingVars.length > 0) {
+        console.error('[Zoom Webhook] Missing environment variables:', missingVars.join(', '));
+        return res.status(500).json({
+          error: 'Server configuration error',
+          message: `Missing required environment variables: ${missingVars.join(', ')}`,
+          hint: 'Configure these in Vercel environment variables'
+        });
+      }
+
       // Only import Supabase AFTER validation is done
       const { createClient } = require('@supabase/supabase-js');
       const supabase = createClient(
@@ -60,7 +80,7 @@ module.exports = async (req, res) => {
       const duration = payload.object.duration; // in minutes
       const recordingFiles = payload.object.recording_files;
 
-        console.log(`[Zoom Webhook] Recording completed: ${meetingId} - ${topic} (${duration} min)`);
+      console.log(`[Zoom Webhook] Recording completed: ${meetingId} - ${topic} (${duration} min)`);
 
     // Determine call type from meeting duration and topic
       const callType = determineCallType(topic, duration);
@@ -75,36 +95,51 @@ module.exports = async (req, res) => {
       // Get Zoom access token
       const accessToken = await getZoomAccessToken();
 
+      // Track database ID for AI analysis
+      let callRecordId = null;
+
       // Process each recording file
       for (const file of recordingFiles) {
-        // Handle VTT transcript files
-        if (file.file_type === 'TRANSCRIPT' || file.recording_type === 'audio_transcript') {
+        // Handle VTT transcript files (language-agnostic detection)
+        if (file.file_type?.includes('TRANSCRIPT') || file.recording_type === 'audio_transcript') {
           console.log(`[Zoom Webhook] Processing transcript for ${callType} call`);
-          
+
           const vttContent = await downloadTranscript(file.download_url, accessToken);
           const cleanedTranscript = cleanVTTTranscript(vttContent);
-          
-          await updateCallRecord(supabase, callType, meetingId, topic, null, cleanedTranscript);
-          
-          // Auto-trigger AI analysis
-          if (cleanedTranscript) {
-            await triggerAIAnalysis(callType, meetingId);
+
+          // ✅ FIX: Capture database ID returned from updateCallRecord
+          callRecordId = await updateCallRecord(supabase, callType, meetingId, topic, null, cleanedTranscript);
+
+          // ✅ FIX: Auto-trigger AI analysis with database ID (not Zoom meeting ID)
+          if (cleanedTranscript && callRecordId) {
+            await triggerAIAnalysis(callType, callRecordId);
+          } else if (!callRecordId) {
+            console.warn(`[Zoom Webhook] ⚠️ Skipping AI analysis - no database record found`);
           }
         }
 
         // Handle video recordings
         if (file.file_type === 'MP4' || file.file_type === 'M4A') {
           console.log(`[Zoom Webhook] Processing recording for ${callType} call`);
-          
+
           const recordingUrl = await downloadRecording(supabase, file.download_url, accessToken);
-          await updateCallRecord(supabase, callType, meetingId, topic, recordingUrl, null);
+
+          // ✅ FIX: Capture database ID (may be same as from transcript, or first update)
+          const recordId = await updateCallRecord(supabase, callType, meetingId, topic, recordingUrl, null);
+
+          // Keep track of ID for response
+          if (recordId) {
+            callRecordId = recordId;
+          }
         }
       }
 
-      return res.status(200).json({ 
-        success: true, 
+      return res.status(200).json({
+        success: true,
         message: `${callType} call processed`,
-        meetingId 
+        meetingId: meetingId,
+        callRecordId: callRecordId,  // ✅ Include database ID in response
+        aiAnalysisTriggered: !!callRecordId
       });
     }
 
@@ -260,8 +295,8 @@ async function updateCallRecord(supabase, callType, meetingId, topic, recordingU
       tableName = 'discovery_calls';
       if (transcript) updates.transcript = transcript;
       break;
-    case 'strategy':  // ✅ USES "strategy" not "strategy"
-      tableName = 'strategy_calls';  // ✅ Correct table name
+    case 'strategy':
+      tableName = 'strategy_calls';
       if (transcript) updates.transcript = transcript;
       break;
     default:
@@ -270,53 +305,65 @@ async function updateCallRecord(supabase, callType, meetingId, topic, recordingU
 
   console.log(`[Zoom Webhook] Updating ${tableName} for meeting ${meetingId}`);
 
+  // ✅ FIX: Select both id AND tenant_id for proper isolation
   const { data: existing } = await supabase
     .from(tableName)
-    .select('id')
+    .select('id, tenant_id')
     .eq('zoom_meeting_id', meetingId)
-    .single();
+    .maybeSingle();  // Use maybeSingle instead of single to avoid error if not found
 
   if (existing) {
-    await supabase
+    // ✅ FIX: Update with tenant_id check for proper multi-tenant isolation
+    const { error: updateError } = await supabase
       .from(tableName)
       .update(updates)
-      .eq('id', existing.id);
-    
-    console.log(`[Zoom Webhook] Updated existing record ${existing.id}`);
+      .eq('id', existing.id)
+      .eq('tenant_id', existing.tenant_id);  // ✅ ADD TENANT CHECK
+
+    if (updateError) {
+      console.error(`[Zoom Webhook] Update error:`, updateError);
+      throw updateError;
+    }
+
+    console.log(`[Zoom Webhook] Updated existing record ${existing.id} (tenant: ${existing.tenant_id})`);
+    return existing.id;  // ✅ FIX: Return database ID for AI analysis
   } else {
-    await supabase
-      .from(tableName)
-      .insert({ ...updates, created_at: new Date().toISOString() });
-    
-    console.log(`[Zoom Webhook] Created new record`);
+    // ⚠️ No existing record found - cannot create without tenant_id
+    console.warn(`[Zoom Webhook] ⚠️ No existing record for meeting ${meetingId}`);
+    console.warn(`[Zoom Webhook] Hint: Call records must be pre-created before Zoom recording`);
+    console.warn(`[Zoom Webhook] Topic: "${topic}" | Duration: ${updates.duration || 'unknown'} min`);
+
+    // Return null to indicate no record was updated
+    return null;
   }
 }
 
-async function triggerAIAnalysis(callType, meetingId) {
+async function triggerAIAnalysis(callType, callId) {
   const actions = {
     'prequal': 'analyze-prequal',
     'podcast': 'analyze-podcast',
     'discovery': 'analyze-discovery',
-    'strategy': 'analyze-strategy'  // ✅ USES "strategy" not "strategy"
+    'strategy': 'analyze-strategy'
   };
 
   const action = actions[callType];
   if (!action) return;
 
   try {
-    console.log(`[Zoom Webhook] Triggering AI analysis: ${action}`);
-    
+    console.log(`[Zoom Webhook] Triggering AI analysis: ${action} for call ID ${callId}`);
+
+    // ✅ FIX: Now passing database call ID (not Zoom meeting ID)
     await fetch('https://growthmanagerpro-backend.vercel.app/api/ai-analyzer', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: action,
-        callId: meetingId
+        callId: callId  // ✅ This is now database ID
       })
     });
-    
-    console.log(`[Zoom Webhook] AI analysis triggered for ${callType}`);
+
+    console.log(`[Zoom Webhook] ✅ AI analysis triggered for ${callType} call ${callId}`);
   } catch (error) {
-    console.error('[Zoom Webhook] AI analysis trigger failed:', error);
+    console.error('[Zoom Webhook] ❌ AI analysis trigger failed:', error);
   }
 }

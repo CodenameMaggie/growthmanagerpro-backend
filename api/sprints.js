@@ -22,12 +22,22 @@ module.exports = async (req, res) => {
 
   // ==================== ACTION ITEMS ====================
   if (type === 'action-items') {
-    
+
     if (req.method === 'GET') {
       try {
+        const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Tenant ID is required'
+          });
+        }
+
         const { data: allTasks } = await supabase
           .from('sprints')
           .select('*')
+          .eq('tenant_id', tenantId)  // ✅ ADD TENANT FILTER
           .order('due_date', { ascending: true });
 
         const tasks = {
@@ -41,6 +51,7 @@ module.exports = async (req, res) => {
         const { data: podcastCalls } = await supabase
           .from('podcast_interviews')
           .select('*')
+          .eq('tenant_id', tenantId)  // ✅ ADD TENANT FILTER
           .or('qualification_score.lt.35,manually_flagged.eq.true')
           .order('call_date', { ascending: false })
           .limit(10);
@@ -59,6 +70,7 @@ module.exports = async (req, res) => {
         const { data: discoveryCalls } = await supabase
           .from('discovery_calls')
           .select('*')
+          .eq('tenant_id', tenantId)  // ✅ ADD TENANT FILTER
           .eq('needs_follow_up', true)
           .order('scheduled_date', { ascending: false })
           .limit(10);
@@ -78,6 +90,7 @@ module.exports = async (req, res) => {
         const { data: strategyCalls } = await supabase
           .from('strategy_calls')
           .select('*')
+          .eq('tenant_id', tenantId)  // ✅ ADD TENANT FILTER
           .eq('call_outcome', 'contract_signed')
           .eq('onboarded', false)
           .order('scheduled_date', { ascending: false })
@@ -122,15 +135,23 @@ module.exports = async (req, res) => {
 
   // ==================== KICKOFF TRIGGER ====================
   if (type === 'trigger-kickoff') {
-    
+
     if (req.method === 'POST') {
       try {
         const { clientId, clientName, programStartDate } = req.body;
+        const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Tenant ID is required'
+          });
+        }
 
         if (!clientId || !clientName || !programStartDate) {
-          return res.status(400).json({ 
-            success: false, 
-            error: 'Client ID, name, and program start date required' 
+          return res.status(400).json({
+            success: false,
+            error: 'Client ID, name, and program start date required'
           });
         }
 
@@ -149,6 +170,7 @@ module.exports = async (req, res) => {
             contact_id: clientId,
             client_name: clientName,
             notes: `Initial kickoff call to launch ${clientName}'s program.`,
+            tenant_id: tenantId,  // ✅ ADD TENANT ID
             created_at: new Date().toISOString()
           }])
           .select()
@@ -167,6 +189,7 @@ module.exports = async (req, res) => {
             scheduled_time: '10:00 AM',
             status: 'scheduled',
             notes: 'Program kickoff - auto-scheduled',
+            tenant_id: tenantId,  // ✅ ADD TENANT ID
             created_at: new Date().toISOString()
           }])
           .select()
@@ -188,13 +211,23 @@ module.exports = async (req, res) => {
 
   // ==================== AUTO-TRIGGER CHECK ====================
   if (type === 'check-auto-triggers') {
-    
+
     if (req.method === 'GET') {
       try {
+        const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Tenant ID is required'
+          });
+        }
+
         // ✅ FIXED: Check 'contacts' table (not prospects)
         const { data: clients } = await supabase
           .from('contacts')
           .select('id, name, program_start_date')
+          .eq('tenant_id', tenantId)  // ✅ ADD TENANT FILTER
           .not('program_start_date', 'is', null)
           .eq('kickoff_created', false);
 
@@ -215,6 +248,7 @@ module.exports = async (req, res) => {
               contact_id: client.id,
               client_name: client.name,
               notes: `Initial kickoff call to launch ${client.name}'s program.`,
+              tenant_id: tenantId,  // ✅ ADD TENANT ID
               created_at: new Date().toISOString()
             }])
             .select()
@@ -224,7 +258,8 @@ module.exports = async (req, res) => {
             await supabase
               .from('contacts')
               .update({ kickoff_created: true })
-              .eq('id', client.id);
+              .eq('id', client.id)
+              .eq('tenant_id', tenantId);  // ✅ ADD TENANT CHECK
 
             triggered.push({
               clientId: client.id,
@@ -249,12 +284,22 @@ module.exports = async (req, res) => {
 
   // ==================== TASKS ====================
   if (type === 'tasks') {
-    
+
     if (req.method === 'GET') {
       try {
+        const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Tenant ID is required'
+          });
+        }
+
         const { data, error } = await supabase
           .from('sprints')
           .select('*')
+          .eq('tenant_id', tenantId)  // ✅ ADD TENANT FILTER
           .order('due_date', { ascending: true });
 
         if (error) throw error;
@@ -283,6 +328,14 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
       try {
         const { title, status, priority, due_date, assigned_to, contact_id, client_name, notes } = req.body;
+        const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Tenant ID is required'
+          });
+        }
 
         if (!title) {
           return res.status(400).json({ success: false, error: 'Task title required' });
@@ -298,7 +351,8 @@ module.exports = async (req, res) => {
             assigned_to: assigned_to || null,
             contact_id: contact_id || null,
             client_name: client_name || null,
-            notes: notes || null
+            notes: notes || null,
+            tenant_id: tenantId  // ✅ ADD TENANT ID
           }])
           .select()
           .single();
@@ -319,13 +373,23 @@ module.exports = async (req, res) => {
 
   // ==================== BLOCKERS ====================
   if (type === 'blockers') {
-    
+
     if (req.method === 'GET') {
       try {
+        const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Tenant ID is required'
+          });
+        }
+
         // Get tasks that are blocked
         const { data: blockedTasks } = await supabase
           .from('sprints')
           .select('*')
+          .eq('tenant_id', tenantId)  // ✅ ADD TENANT FILTER
           .eq('task_status', 'blocked')
           .order('created_at', { ascending: false });
 
@@ -333,6 +397,7 @@ module.exports = async (req, res) => {
         const { data: blockedCalls } = await supabase
           .from('discovery_calls')
           .select('*')
+          .eq('tenant_id', tenantId)  // ✅ ADD TENANT FILTER
           .eq('needs_follow_up', true)
           .is('follow_up_completed', null)
           .order('scheduled_date', { ascending: false })
@@ -394,12 +459,22 @@ module.exports = async (req, res) => {
 
   // ==================== MESSAGES ====================
   if (type === 'messages') {
-    
+
     if (req.method === 'GET') {
       try {
+        const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Tenant ID is required'
+          });
+        }
+
         const { data, error } = await supabase
           .from('messages')
           .select('*')
+          .eq('tenant_id', tenantId)  // ✅ ADD TENANT FILTER
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -417,6 +492,14 @@ module.exports = async (req, res) => {
     if (req.method === 'POST') {
       try {
         const { author, content } = req.body;
+        const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Tenant ID is required'
+          });
+        }
 
         if (!content) {
           return res.status(400).json({ success: false, error: 'Message content required' });
@@ -426,7 +509,8 @@ module.exports = async (req, res) => {
           .from('messages')
           .insert([{
             author: author || 'Anonymous',
-            content: content
+            content: content,
+            tenant_id: tenantId  // ✅ ADD TENANT ID
           }])
           .select()
           .single();
@@ -446,28 +530,41 @@ module.exports = async (req, res) => {
 
   // ==================== STATS ====================
   if (type === 'stats') {
-    
+
     if (req.method === 'GET') {
       try {
+        const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+        if (!tenantId) {
+          return res.status(400).json({
+            success: false,
+            error: 'Tenant ID is required'
+          });
+        }
+
         const { data: tasks } = await supabase
           .from('sprints')
-          .select('task_status');
+          .select('task_status')
+          .eq('tenant_id', tenantId);  // ✅ ADD TENANT FILTER
 
         const tasksCompleted = tasks ? tasks.filter(t => t.task_status === 'completed').length : 0;
         const tasksTotal = tasks ? tasks.length : 0;
 
         const { count: podcastCount } = await supabase
           .from('podcast_interviews')
-          .select('*', { count: 'exact', head: true });
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenantId);  // ✅ ADD TENANT FILTER
 
         const { count: discoveryCount } = await supabase
           .from('discovery_calls')
-          .select('*', { count: 'exact', head: true });
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenantId);  // ✅ ADD TENANT FILTER
 
         // ✅ FIXED: Use 'contacts' table (not prospects)
         const { count: contactsCount } = await supabase
           .from('contacts')
-          .select('*', { count: 'exact', head: true });
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenantId);  // ✅ ADD TENANT FILTER
 
         return res.status(200).json({
           success: true,

@@ -1,4 +1,5 @@
 const { createClient } = require('@supabase/supabase-js');
+const bcrypt = require('bcrypt');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -9,7 +10,7 @@ const PERMISSIONS = {
   admin: 'all',
   saas: 'all',
   advisor: ['advisor-dashboard.view'],
-  consultant: ['advisor-dashboard.view'],
+  consultant: ['consultant-dashboard.view'],  // ✅ Consultant-specific permission
   client: ['client-dashboard.view']
 };
 
@@ -50,19 +51,28 @@ module.exports = async (req, res) => {
 
     if (user && !userError) {
       // User found in users table
-      if (user.password === password) {
+      // Check password hash
+      const passwordHash = user.password_hash || user.password;  // Support legacy plaintext temporarily
+      const isValidPassword = passwordHash.startsWith('$2')
+        ? await bcrypt.compare(password, passwordHash)  // ✅ Hashed password
+        : passwordHash === password;  // Legacy plaintext (temporary support)
+
+      if (isValidPassword) {
         const userRole = user.role || 'admin';
         
         // Determine redirect based on role
         let redirectTo;
         let userType;
-        
+
         if (userRole === 'admin' || userRole === 'saas') {
           redirectTo = '/dashboard.html';
           userType = 'admin';
-        } else if (userRole === 'advisor' || userRole === 'consultant') {
+        } else if (userRole === 'advisor') {
           redirectTo = '/advisor-dashboard.html';
           userType = 'advisor';
+        } else if (userRole === 'consultant') {
+          redirectTo = '/consultant-dashboard.html';  // ✅ Consultant-specific dashboard
+          userType = 'consultant';
         } else {
           redirectTo = '/dashboard.html';
           userType = 'admin';
@@ -107,16 +117,21 @@ module.exports = async (req, res) => {
     }
 
     // Check client password
-    const clientPassword = client.password || client.temp_password;
+    const clientPasswordHash = client.password_hash || client.password || client.temp_password;
 
-    if (!clientPassword) {
+    if (!clientPasswordHash) {
       return res.status(401).json({
         success: false,
         error: 'Account not fully set up. Please contact support.'
       });
     }
 
-    if (clientPassword !== password) {
+    // Check password hash (support both hashed and legacy plaintext)
+    const isValidClientPassword = clientPasswordHash.startsWith('$2')
+      ? await bcrypt.compare(password, clientPasswordHash)  // ✅ Hashed password
+      : clientPasswordHash === password;  // Legacy plaintext (temporary support)
+
+    if (!isValidClientPassword) {
       console.log('[Login] ❌ Invalid password for client:', email);
       return res.status(401).json({
         success: false,

@@ -20,16 +20,29 @@ module.exports = async (req, res) => {
   try {
     console.log('[Dashboard API] Loading unified dashboard data...');
 
+    // Extract tenant_id from request
+    const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+    if (!tenantId) {
+      console.error('[Dashboard API] Missing tenant_id in request');
+      return res.status(400).json({
+        success: false,
+        error: 'Tenant ID is required'
+      });
+    }
+
+    console.log('[Dashboard API] Loading data for tenant:', tenantId);
+
     // ==================== FETCH ALL DATA IN PARALLEL ====================
-    // FIXED: Using correct column names that match actual Supabase schema
+    // ✅ NOW WITH TENANT FILTERING - Each query filters by tenant_id
     const [sprintsResult, podcastResult, prequalResult, discoveryResult, strategyResult, pipelineResult, contactsResult] = await Promise.all([
-      supabase.from('sprints').select('*').order('due_date', { ascending: true }),
-      supabase.from('podcast_interviews').select('*').order('scheduled_date', { ascending: false }),
-      supabase.from('pre_qualification_calls').select('*').order('scheduled_date', { ascending: false }),
-      supabase.from('discovery_calls').select('*').order('call_date', { ascending: false }),  // FIXED: call_date not scheduled_date
-      supabase.from('strategy_calls').select('*').order('scheduled_date', { ascending: false }),
-      supabase.from('pipeline').select('*').order('created_at', { ascending: false }),
-      supabase.from('contacts').select('*').order('created_at', { ascending: false })
+      supabase.from('sprints').select('*').eq('tenant_id', tenantId).order('due_date', { ascending: true }),
+      supabase.from('podcast_interviews').select('*').eq('tenant_id', tenantId).order('scheduled_date', { ascending: false }),
+      supabase.from('pre_qualification_calls').select('*').eq('tenant_id', tenantId).order('scheduled_date', { ascending: false }),
+      supabase.from('discovery_calls').select('*').eq('tenant_id', tenantId).order('call_date', { ascending: false }),
+      supabase.from('strategy_calls').select('*').eq('tenant_id', tenantId).order('scheduled_date', { ascending: false }),
+      supabase.from('pipeline').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }),
+      supabase.from('contacts').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false })
     ]);
 
     const sprints = sprintsResult.data || [];

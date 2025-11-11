@@ -1,5 +1,6 @@
 const { createClient } = require('@supabase/supabase-js');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const bcrypt = require('bcrypt');
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -175,13 +176,18 @@ module.exports = async (req, res) => {
 
     console.log('[SaaS Signup] Tenant created:', newTenant.id);
 
+    // Hash password before storing
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    console.log('[SaaS Signup] Password hashed successfully');
+
     const { data: newUser, error: userError } = await supabase
       .from('users')
       .insert([{
         tenant_id: newTenant.id,
         email: email,
         full_name: ownerName,
-        password: password,
+        password_hash: hashedPassword,  // ✅ Store hashed password
         role: 'owner',
         status: 'active',
         created_at: new Date().toISOString()

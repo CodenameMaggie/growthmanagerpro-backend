@@ -23,40 +23,59 @@ res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Tenant-ID');
     try {
         // GET - Fetch all contacts organized by 5-stage pipeline
         if (req.method === 'GET') {
-            // Define the 5 pipeline stages
-            // Define the 6 pipeline stages (added Pre-Qual Calls)
+            // Extract tenant_id from request
+            const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+            if (!tenantId) {
+                console.error('[Pipeline] Missing tenant_id in request');
+                return res.status(400).json({
+                    success: false,
+                    error: 'Tenant ID is required'
+                });
+            }
+
+            console.log('[Pipeline] Loading pipeline data for tenant:', tenantId);
+
+            // Define the 7 pipeline stages (added Pre-Qual Calls and Proposals)
 const stageDefinitions = [
-    { 
-        name: 'Pre-Qual Calls', 
-        key: 'prequal', 
+    {
+        name: 'Pre-Qual Calls',
+        key: 'prequal',
         icon: '📞',
         source: 'pre_qualification_calls',
         filter: { call_status: ['completed', 'recorded'] }
     },
-    { 
-        name: 'Podcast Interview', 
-        key: 'podcast', 
+    {
+        name: 'Podcast Interview',
+        key: 'podcast',
         icon: '🎙️',
         source: 'podcast_interviews',
         filter: {}  // Show all podcast interviews
     },
-    { 
-        name: 'Discovery Call', 
-        key: 'discovery', 
+    {
+        name: 'Discovery Call',
+        key: 'discovery',
         icon: '🔍',
         source: 'discovery_calls',
         filter: {}  // Show all discovery calls
     },
-    { 
-        name: 'Strategy Call', 
-        key: 'strategy', 
+    {
+        name: 'Strategy Call',
+        key: 'strategy',
         icon: '💼',
         source: 'strategy_calls',
         filter: {}  // Show all strategy calls
     },
-    { 
-        name: 'Active Deals', 
-        key: 'deals', 
+    {
+        name: 'Proposals',
+        key: 'proposal',
+        icon: '📄',
+        source: 'proposals',
+        filter: { status: ['draft', 'ready', 'sent', 'viewed', 'negotiating'] }  // Show active proposals
+    },
+    {
+        name: 'Active Deals',
+        key: 'deals',
         icon: '🤝',
         source: 'deals',
         filter: { status: ['active', 'pending', 'open'] }
@@ -66,9 +85,13 @@ const stageDefinitions = [
             // Fetch data for each stage
             const stages = await Promise.all(stageDefinitions.map(async (stageDef) => {
                 try {
-                    let query = supabase.from(stageDef.source).select('*');
-                    
-                    // Apply filters
+                    // ✅ START WITH TENANT FILTERING
+                    let query = supabase
+                        .from(stageDef.source)
+                        .select('*')
+                        .eq('tenant_id', tenantId);  // ✅ ADD TENANT FILTER FIRST
+
+                    // Apply additional filters
                     Object.entries(stageDef.filter).forEach(([field, value]) => {
                         if (Array.isArray(value)) {
                             query = query.in(field, value);
@@ -91,18 +114,20 @@ const stageDefinitions = [
                    // Transform data to standard format
                     const prospects = (data || []).map(item => ({
                         id: item.id,
-                        name: item.name || item.guest_name || item.client_name || item.contact_name || 'Unnamed',
+                        name: item.name || item.guest_name || item.client_name || item.contact_name || item.prospect_name || 'Unnamed',
                         email: item.email || item.guest_email || item.client_email || '',
                         company: item.company || item.guest_company || item.client_company || '',
                         phone: item.phone || '',
-                        score: item.ai_score || item.podcast_score || item.qualification_score || 0,  // ← Added ai_score
-                        podcastScore: item.ai_score || item.podcast_score || 0,  // ← Added ai_score
+                        score: item.ai_score || item.podcast_score || item.qualification_score || 0,
+                        podcastScore: item.ai_score || item.podcast_score || 0,
                         createdAt: item.created_at || item.interview_date || item.call_date || item.scheduled_date,
                         updatedAt: item.updated_at || item.created_at,
                         stage: stageDef.key,
-                        notes: item.notes || '',
+                        notes: item.notes || item.internal_notes || '',
                         assignedSender: item.assigned_sender_email || null,
-                        callStatus: item.call_status || item.status || null  // ← Added for pre-qual calls
+                        callStatus: item.call_status || item.status || null,
+                        proposalNumber: item.proposal_number || null,  // ← Added for proposals
+                        proposalValue: item.total_contract_value || null  // ← Added for proposals
                     }));
 
                     return {
@@ -152,6 +177,14 @@ const stageDefinitions = [
         // POST - Move contact to different stage (SENDER-AWARE)
         if (req.method === 'POST') {
             const { contactId, stage, notes, email } = req.body;
+            const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+            if (!tenantId) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Tenant ID is required'
+                });
+            }
 
             if (!contactId || !stage) {
                 return res.status(400).json({
@@ -160,21 +193,22 @@ const stageDefinitions = [
                 });
             }
 
-            console.log(`[Pipeline] Moving contact ${contactId} to stage: ${stage}`);
+            console.log(`[Pipeline] Moving contact ${contactId} to stage: ${stage} (tenant: ${tenantId})`);
 
             // ============================================
             // SENDER TRACKING LOGIC
             // ============================================
             let contactEmail = email;
-            
-            // If email not provided, fetch it
+
+            // If email not provided, fetch it (with tenant check)
             if (!contactEmail) {
                 const { data: contact } = await supabase
                     .from('contacts')
                     .select('email')
                     .eq('id', contactId)
+                    .eq('tenant_id', tenantId)  // ✅ ADD TENANT CHECK
                     .single();
-                
+
                 contactEmail = contact?.email;
             }
 
@@ -222,6 +256,7 @@ const stageDefinitions = [
                 .from('contacts')
                 .update(updateData)
                 .eq('id', contactId)
+                .eq('tenant_id', tenantId)  // ✅ ADD TENANT CHECK
                 .select()
                 .single();
 
@@ -238,6 +273,14 @@ const stageDefinitions = [
         // PUT - Update contact details
         if (req.method === 'PUT') {
             const { id, ...updateData } = req.body;
+            const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+            if (!tenantId) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Tenant ID is required'
+                });
+            }
 
             if (!id) {
                 return res.status(400).json({
@@ -252,6 +295,7 @@ const stageDefinitions = [
                 .from('contacts')
                 .update(updateData)
                 .eq('id', id)
+                .eq('tenant_id', tenantId)  // ✅ ADD TENANT CHECK
                 .select()
                 .single();
 

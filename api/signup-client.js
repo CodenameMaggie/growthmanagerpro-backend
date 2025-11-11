@@ -2,6 +2,7 @@
 // Updated to handle advisor connections
 
 const { createClient } = require('@supabase/supabase-js');
+const bcrypt = require('bcrypt');
 
 const supabase = createClient(
     process.env.SUPABASE_URL,
@@ -68,8 +69,10 @@ if (!termsAccepted || !privacyAccepted) {
             });
         }
 
-        // Hash password
-        const plainPassword = password; // Store plain text to match login.js
+        // Hash password before storing
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        console.log('[Client Signup] Password hashed successfully');
 
         // Create contact record
        const { data: newContact, error: insertError } = await supabase
@@ -79,7 +82,7 @@ if (!termsAccepted || !privacyAccepted) {
         email: email,
         company: company,
         phone: phone || null,
-        password_hash: plainPassword,
+        password_hash: hashedPassword,  // ✅ Store hashed password
         status: 'pending',
         source: 'client_signup',
         created_at: new Date().toISOString(),

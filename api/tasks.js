@@ -16,9 +16,19 @@ module.exports = async (req, res) => {
   // ==================== GET - Read all tasks for dashboard ====================
   if (req.method === 'GET') {
     try {
+      const tenantId = req.query.tenant_id || req.headers['x-tenant-id'];
+
+      if (!tenantId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Tenant ID is required'
+        });
+      }
+
       const { data, error } = await supabase
         .from('sprints')
         .select('*')
+        .eq('tenant_id', tenantId)  // ✅ ADD TENANT FILTER
         .order('due_date', { ascending: true });
 
       if (error) throw error;
