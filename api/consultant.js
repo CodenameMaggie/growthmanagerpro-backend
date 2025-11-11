@@ -406,8 +406,8 @@ async function handleDisconnectClient(req, res, tenantId) {
 function getClientLimit(tier) {
   const limits = {
     starter: 5,
-    professional: 25,
-    premium: 100
+    professional: 15,
+    premium: 50
   };
   return limits[tier] || 5; // Default to starter limit
 }
