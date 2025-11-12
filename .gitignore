@@ -1,1 +1,8 @@
 .vercel
+
+.env
+*.tar.gz
+api_routes.txt
+backend_verification.json
+html_endpoints_used.txt
+vercel.json.v2-backup

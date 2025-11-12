@@ -617,7 +617,7 @@
     })();
     
     // Configuration
-        const API_BASE = 'https://app.growthmanagerpro.com';
+        const API_BASE = 'https://growthmanagerpro-backend.vercel.app';
         
         // State
         let pipelineData = { stages: [], stats: {} };
@@ -761,25 +761,9 @@
         function renderContactCard(contact, stageKey) {
             const stageColor = getStageColor(stageKey);
             const score = contact.podcastScore || contact.score || 0;
-
-            // Special rendering for proposals
-            if (stageKey === 'proposal' && contact.proposalNumber) {
-                return `
-                    <div class="contact-card" onclick="viewContact('${contact.id}')"
-                         style="border-left-color: ${stageColor}">
-                        <div class="contact-name">${contact.name || 'Unnamed Contact'}</div>
-                        <div class="contact-company">${contact.company || 'No company'}</div>
-                        <div class="contact-email">${contact.proposalNumber || 'Draft'}</div>
-                        <div class="contact-meta">
-                            <span>${contact.proposalValue ? '$' + Number(contact.proposalValue).toLocaleString() : 'No value'}</span>
-                            <span class="contact-score">📄 Proposal</span>
-                        </div>
-                    </div>
-                `;
-            }
-
+            
             return `
-                <div class="contact-card" onclick="viewContact('${contact.id}')"
+                <div class="contact-card" onclick="viewContact('${contact.id}')" 
                      style="border-left-color: ${stageColor}">
                     <div class="contact-name">${contact.name || 'Unnamed Contact'}</div>
                     <div class="contact-company">${contact.company || 'No company'}</div>

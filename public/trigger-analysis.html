@@ -95,7 +95,7 @@
         <div class="info-box">
             <strong>Call ID:</strong> <span class="call-id">5cda5222-3acd-49ca-8f0a-ce4f2464c353</span><br>
             <strong>Action:</strong> Analyze Pre-Qualification Call<br>
-            <strong>Backend:</strong> app.growthmanagerpro.com
+            <strong>Backend:</strong> growthmanagerpro-backend.vercel.app
         </div>
 
         <button id="analyzeBtn" onclick="triggerAnalysis()">
@@ -117,7 +117,7 @@
             resultDiv.textContent = '⏳ Sending request to AI analyzer...';
 
             try {
-                const response = await fetch('https://app.growthmanagerpro.com/api/ai-analyzer', {
+                const response = await fetch('https://growthmanagerpro-backend.vercel.app/api/ai-analyzer', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
