@@ -40,8 +40,9 @@ const AuthHelper = {
     const subdomain = hostname.split('.')[0];
     
     // Check if we're on a subdomain
-    const isSubdomain = hostname.includes('.growthmanagerpro.com') && 
-                        subdomain !== 'www' && 
+    const isSubdomain = hostname.includes('.growthmanagerpro.com') &&
+                        subdomain !== 'www' &&
+                        subdomain !== 'app' &&
                         subdomain !== 'growthmanagerpro';
     
     if (!isSubdomain) {
