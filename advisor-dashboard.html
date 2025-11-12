@@ -1,0 +1,1577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advisor Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 280px;
+            background: white;
+            padding: 2rem 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-header {
+            padding: 0 2rem 2rem 2rem;
+            border-bottom: 2px solid #e1e5e9;
+            margin-bottom: 2rem;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .advisor-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        .nav-section {
+            margin-bottom: 2rem;
+        }
+
+        .nav-section-title {
+            padding: 0 2rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #95a5a6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem 2rem;
+            color: #5a6c7d;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .nav-item:hover {
+            background: #f8f9fa;
+            color: #2c3e50;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #2980b9;
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            margin-right: 1rem;
+            font-size: 1.2rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            padding: 2rem;
+        }
+
+        /* Page Header */
+        .page-header {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .page-header h2 {
+            font-size: 2rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .page-subtitle {
+            color: #7f8c8d;
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .sprint-info {
+            display: flex;
+            gap: 2rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .sprint-info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sprint-info-label {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-bottom: 0.25rem;
+        }
+
+        .sprint-info-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+        }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .stat-icon {
+            font-size: 2rem;
+            opacity: 0.6;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+
+        .stat-trend {
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .trend-up {
+            color: #27ae60;
+        }
+
+        .trend-down {
+            color: #e74c3c;
+        }
+
+        .trend-neutral {
+            color: #7f8c8d;
+        }
+
+        /* Two Column Layout */
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Full Width Section */
+        .full-width {
+            margin-bottom: 2rem;
+        }
+
+        /* Card Styles */
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 2px solid #e1e5e9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        }
+
+        .card-header h3 {
+            font-size: 1.25rem;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .card-body {
+            padding: 2rem;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        /* Button Styles */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #3498db;
+            border: 2px solid #3498db;
+        }
+
+        .btn-secondary:hover {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        .btn-icon {
+            padding: 0.5rem;
+            background: transparent;
+            color: white;
+            font-size: 1.2rem;
+        }
+
+        .btn-icon:hover {
+            background: rgba(255,255,255,0.1);
+            transform: none;
+        }
+
+        /* Tasks Section */
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .task-item {
+            padding: 1.25rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .task-item:hover {
+            border-color: #3498db;
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.1);
+        }
+
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .task-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            margin-bottom: 0.5rem;
+        }
+
+        .task-description {
+            color: #5a6c7d;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .status-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-todo {
+            background: #ecf0f1;
+            color: #5a6c7d;
+        }
+
+        .status-in-progress,
+        .status-on-track {
+            background: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .status-completed,
+        .status-finished {
+            background: #d1f2eb;
+            color: #16a085;
+        }
+
+        .status-blocked {
+            background: #fef5e7;
+            color: #f39c12;
+        }
+
+        .status-off-track {
+            background: #fadbd8;
+            color: #e74c3c;
+        }
+
+        .priority-badge {
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .priority-high {
+            background: #fadbd8;
+            color: #e74c3c;
+        }
+
+        .priority-medium {
+            background: #fef5e7;
+            color: #f39c12;
+        }
+
+        .priority-low {
+            background: #ecf0f1;
+            color: #7f8c8d;
+        }
+
+        /* Blockers Section */
+        .blocker-item {
+            padding: 1.25rem;
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .blocker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .blocker-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #856404;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .blocker-description {
+            color: #856404;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+
+        .blocker-meta {
+            font-size: 0.85rem;
+            color: #856404;
+            opacity: 0.8;
+        }
+
+        /* Files Section */
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .file-item {
+            padding: 1rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .file-item:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .file-icon {
+            font-size: 2rem;
+            opacity: 0.6;
+        }
+
+        .file-details h4 {
+            font-size: 1rem;
+            color: #2c3e50;
+            margin-bottom: 0.25rem;
+        }
+
+        .file-details p {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+        }
+
+        /* Discussion/Notes Section */
+        .discussion-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .discussion-item {
+            padding: 1.25rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .discussion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .discussion-author {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .discussion-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .discussion-author-info h4 {
+            font-size: 0.95rem;
+            color: #2c3e50;
+            margin-bottom: 0.15rem;
+        }
+
+        .discussion-author-info p {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+        }
+
+        .discussion-content {
+            color: #5a6c7d;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+
+        .discussion-input {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .discussion-textarea {
+            flex: 1;
+            padding: 1rem;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .discussion-textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: #7f8c8d;
+        }
+
+        .empty-state h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+            font-size: 0.95rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #7f8c8d;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e1e5e9;
+            border-top-color: #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Connection Status */
+        .connection-status {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 1000;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-connected {
+            background: #27ae60;
+        }
+
+        .status-error {
+            background: #e74c3c;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>Growth Manager Pro</h1>
+                <span class="advisor-badge">Advisor Dashboard</span>
+                
+                <!-- User Profile -->
+                <div class="user-profile" style="margin-top: 1rem;">
+                    <div class="user-avatar" id="userAvatar">A</div>
+                    <div class="user-info">
+                        <div class="user-name" id="userName">Loading...</div>
+                        <div class="user-role" id="userRole">Advisor</div>
+                    </div>
+                </div>
+                
+                <!-- Client Selector -->
+                <div class="client-selector" id="clientSelector" style="margin-top: 1rem;">
+                    <label for="clientDropdown" style="display: block; font-size: 0.85rem; color: #5a6c7d; margin-bottom: 0.5rem; font-weight: 600;">📊 View Client:</label>
+                    <select id="clientDropdown" class="client-dropdown" onchange="switchClient(this.value)" style="width: 100%; padding: 0.75rem; border: 2px solid #e1e5e9; border-radius: 8px; font-size: 0.95rem; color: #2c3e50; background: white; cursor: pointer;">
+                        <option value="">My Dashboard (All Clients)</option>
+                    </select>
+                </div>
+            </div>
+
+            <nav>
+                <div class="nav-section">
+                    <div class="nav-section-title">Navigation</div>
+                    <a href="advisor-dashboard.html" class="nav-item active">
+                        <span class="nav-icon">📊</span>
+                        <span>Dashboard</span>
+                    </a>
+                    <!-- Main Dashboard link - Admin Only -->
+                    <a href="dashboard.html" class="nav-item" id="main-dashboard-link" style="display: none;">
+                        <span class="nav-icon">🏠</span>
+                        <span>Main Dashboard</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-item" onclick="scrollToSection('discussion')">
+                        <span class="nav-icon">💬</span>
+                        <span>Discussion</span>
+                    </a>
+                    <a href="javascript:void(0)" class="nav-item" onclick="scrollToSection('files')">
+                        <span class="nav-icon">📁</span>
+                        <span>Files</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Account</div>
+                    <a href="edit-profile.html" class="nav-item">
+                        <span class="nav-icon">👤</span>
+                        <span>Profile</span>
+                    </a>
+                    <a href="settings.html" class="nav-item">
+                        <span class="nav-icon">⚙️</span>
+                        <span>Settings</span>
+                    </a>
+                    <a href="login.html" class="nav-item" onclick="handleLogout(event); return false;">
+                        <span class="nav-icon">🚪</span>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <h2>Advisor Dashboard</h2>
+                <p class="page-subtitle">Track progress, identify blockers, and collaborate on business growth</p>
+                
+                <div class="sprint-info">
+                    <div class="sprint-info-item">
+                        <span class="sprint-info-label">Current Sprint</span>
+                        <span class="sprint-info-value" id="current-sprint">Loading...</span>
+                    </div>
+                    <div class="sprint-info-item">
+                        <span class="sprint-info-label">Sprint Period</span>
+                        <span class="sprint-info-value" id="sprint-period">Loading...</span>
+                    </div>
+                    <div class="sprint-info-item">
+                        <span class="sprint-info-label">Days Remaining</span>
+                        <span class="sprint-info-value" id="days-remaining">Loading...</span>
+                    </div>
+                    <div class="sprint-info-item">
+                        <span class="sprint-info-label">Last Updated</span>
+                        <span class="sprint-info-value" id="last-updated">Just now</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Grid - Maggie's Business Metrics -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">Podcast Calls</div>
+                            <div class="stat-value" id="stat-podcast">0</div>
+                            <div class="stat-trend trend-up">
+                                <span>↑</span>
+                                <span id="podcast-trend">This week</span>
+                            </div>
+                        </div>
+                        <div class="stat-icon">🎙️</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">Discovery Calls</div>
+                            <div class="stat-value" id="stat-discovery">0</div>
+                            <div class="stat-trend trend-up">
+                                <span>↑</span>
+                                <span id="discovery-trend">This week</span>
+                            </div>
+                        </div>
+                        <div class="stat-icon">📞</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">Tasks Completed</div>
+                            <div class="stat-value" id="stat-tasks">0</div>
+                            <div class="stat-trend trend-neutral">
+                                <span id="tasks-trend">of 0 total</span>
+                            </div>
+                        </div>
+                        <div class="stat-icon">✅</div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <div>
+                            <div class="stat-label">Pipeline Health</div>
+                            <div class="stat-value" id="stat-pipeline">0%</div>
+                            <div class="stat-trend trend-up">
+                                <span>↑</span>
+                                <span>On track</span>
+                            </div>
+                        </div>
+                        <div class="stat-icon">📈</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two Column Layout: Tasks & Blockers -->
+            <div class="two-column">
+                <!-- Tasks Section -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>
+                            <span>✅</span>
+                            <span>Current Tasks</span>
+                        </h3>
+                        <div class="card-actions">
+                            <button class="btn btn-icon" onclick="refreshTasks()" title="Refresh">🔄</button>
+                            <button class="btn btn-small btn-primary" onclick="addNote('task')">💬 Add Note</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="tasks-list" class="task-list">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                <p>Loading tasks...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Blockers Section -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>
+                            <span>🚨</span>
+                            <span>Active Blockers</span>
+                        </h3>
+                        <div class="card-actions">
+                            <button class="btn btn-icon" onclick="refreshBlockers()" title="Refresh">🔄</button>
+                            <button class="btn btn-small btn-primary" onclick="suggestSolution()">💡 Suggest Solution</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="blockers-list">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                <p>Loading blockers...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full Width: Discussion/Notes -->
+            <div class="full-width" id="discussion">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>
+                            <span>💬</span>
+                            <span>Discussion & Notes</span>
+                        </h3>
+                        <div class="card-actions">
+                            <button class="btn btn-icon" onclick="refreshDiscussion()" title="Refresh">🔄</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Add Note Form -->
+                        <div class="discussion-input">
+                            <textarea 
+                                id="note-input" 
+                                class="discussion-textarea" 
+                                placeholder="Add a note, question, or suggestion for Maggie..."
+                            ></textarea>
+                            <button class="btn btn-primary" onclick="postNote()">📝 Post Note</button>
+                        </div>
+
+                        <!-- Discussion List -->
+                        <div id="discussion-list" class="discussion-list" style="margin-top: 2rem;">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                <p>Loading discussion...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full Width: Shared Files -->
+            <div class="full-width" id="files">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>
+                            <span>📁</span>
+                            <span>Shared Files</span>
+                        </h3>
+                        <div class="card-actions">
+                            <button class="btn btn-icon" onclick="refreshFiles()" title="Refresh">🔄</button>
+                            <button class="btn btn-small btn-primary" onclick="uploadFile()">📤 Upload File</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="files-list" class="file-list">
+                            <div class="loading">
+                                <div class="loading-spinner"></div>
+                                <p>Loading files...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Connection Status -->
+        <div class="connection-status">
+            <div class="status-indicator status-connected" id="status-indicator"></div>
+            <span id="status-text">Live Connected</span>
+        </div>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="file-input" style="display: none;" onchange="handleFileUpload()">
+
+    <script>
+        const API_URL = 'https://growthmanagerpro-backend.vercel.app';
+        
+        // Data stores
+        let tasksData = [];
+        let blockersData = [];
+        let discussionData = [];
+        let filesData = [];
+
+        // Update profile indicator
+        function updateProfileIndicator() {
+            const userData = localStorage.getItem('user');
+            console.log('[Profile] Reading user data from localStorage');
+            
+            if (!userData) {
+                console.error('[Profile] No user data in localStorage');
+                document.getElementById('userName').textContent = 'Not Logged In';
+                return;
+            }
+            
+            try {
+                const user = JSON.parse(userData);
+                console.log('[Profile] User data:', user);
+                
+                // Better fallback chain
+                const userName = user.full_name || user.name || (user.email ? user.email.split('@')[0] : 'Advisor');
+                
+                console.log('[Profile] Setting userName to:', userName);
+                document.getElementById('userName').textContent = userName;
+                
+                // Update avatar with initials
+                const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+                document.getElementById('userAvatar').textContent = initials;
+                
+                // Update role display
+                const role = user.role || user.type || 'advisor';
+                const roleNames = {
+                    'consultant': '💼 Consultant',
+                    'advisor': '🎯 Advisor',
+                    'admin': '👑 Admin',
+                    'saas': '🚀 SaaS'
+                };
+                document.getElementById('userRole').textContent = roleNames[role] || '🎯 Advisor';
+                
+                // Show Main Dashboard link ONLY for admin
+                if (role === 'admin') {
+                    const mainDashboardLink = document.getElementById('main-dashboard-link');
+                    if (mainDashboardLink) {
+                        mainDashboardLink.style.display = 'flex';
+                    }
+                }
+                
+                console.log('[Profile] ✅ Profile updated successfully');
+            } catch (error) {
+                console.error('[Profile] Error parsing user data:', error);
+                document.getElementById('userName').textContent = 'Error Loading';
+            }
+        }
+
+        // Load client list
+        async function loadClientList() {
+            try {
+                // Get current user ID from localStorage
+                const userData = localStorage.getItem('user');
+                if (!userData) {
+                    console.error('[Client List] No user data found');
+                    return;
+                }
+                
+                const user = JSON.parse(userData);
+                const advisorId = user.id;
+                
+                console.log('[Client List] Loading clients for advisor:', advisorId);
+                
+                const response = await fetch(`${API_URL}/api/advisor/clients?advisorId=${advisorId}`);
+                const result = await response.json();
+                
+                if (result.success && result.clients) {
+                    const dropdown = document.getElementById('clientDropdown');
+                    dropdown.innerHTML = '<option value="">My Dashboard (All Clients)</option>';
+                    result.clients.forEach(client => {
+                        const option = document.createElement('option');
+                        option.value = client.id;
+                        option.textContent = client.full_name || client.email || 'Unnamed Client';
+                        dropdown.appendChild(option);
+                    });
+                    console.log('[Client List] ✅ Loaded', result.clients.length, 'clients');
+                } else {
+                    console.error('[Client List] Error:', result.error);
+                }
+            } catch (error) {
+                console.error('[Client List] Error loading clients:', error);
+            }
+        }
+
+        // Switch client view
+        function switchClient(clientId) {
+            if (!clientId) {
+                localStorage.removeItem('viewingClientId');
+                window.location.reload();
+                return;
+            }
+            localStorage.setItem('viewingClientId', clientId);
+            const dropdown = document.getElementById('clientDropdown');
+            const clientName = dropdown.options[dropdown.selectedIndex].text;
+            alert(`Switched to viewing: ${clientName}\n\nClient-specific data loading will be added next.`);
+            window.location.reload();
+        }
+
+        // Logout handler
+        function handleLogout(event) {
+            if (event) event.preventDefault();
+            localStorage.removeItem('user');
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userRole');
+            window.location.href = 'login.html';
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('[Advisor Dashboard] Initializing...');
+            
+            // Initialize profile and client selector
+            updateProfileIndicator();
+            loadClientList();
+            
+            // Load all dashboard data
+            loadAllData();
+            
+            // Auto-refresh every 2 minutes
+            setInterval(loadAllData, 2 * 60 * 1000);
+        });
+
+        async function loadAllData() {
+            updateConnectionStatus('connecting');
+            
+            try {
+                await Promise.all([
+                    loadStats(),
+                    loadTasks(),
+                    loadBlockers(),
+                    loadDiscussion(),
+                    loadFiles()
+                ]);
+                
+                updateConnectionStatus('connected');
+                updateLastUpdated();
+            } catch (error) {
+                console.error('[Advisor Dashboard] Error loading data:', error);
+                updateConnectionStatus('error');
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_URL}/api/sprints?type=stats`);
+                if (!response.ok) throw new Error('Failed to load stats');
+                
+                const result = await response.json();
+                const stats = result.stats || {};
+                
+                // Update stat cards
+                document.getElementById('stat-podcast').textContent = stats.podcast_calls || 0;
+                document.getElementById('stat-discovery').textContent = stats.discovery_calls || 0;
+                document.getElementById('stat-tasks').textContent = stats.tasks_completed || 0;
+                document.getElementById('tasks-trend').textContent = `of ${stats.tasks_total || 0} total`;
+                
+                console.log('[Stats] ✅ Loaded stats:', stats);
+            } catch (error) {
+                console.error('[Stats] Error:', error);
+                throw error;
+            }
+        }
+
+        async function loadTasks() {
+            try {
+                const response = await fetch(`${API_URL}/api/sprints?type=tasks`);
+                if (!response.ok) throw new Error('Failed to load tasks');
+                
+                const result = await response.json();
+                tasksData = result.tasks || [];
+                renderTasks();
+                console.log('[Tasks] ✅ Loaded', tasksData.length, 'tasks');
+            } catch (error) {
+                console.error('[Advisor Dashboard] Error loading tasks:', error);
+                renderTasksError();
+            }
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('tasks-list');
+            
+            if (tasksData.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>✅ All Caught Up!</h3>
+                        <p>No active tasks at the moment</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Show only in-progress and blocked tasks to advisor
+            const relevantTasks = tasksData.filter(t => 
+                t.status === 'in-progress' || 
+                t.status === 'on-track' || 
+                t.status === 'blocked' ||
+                t.status === 'off-track'
+            );
+
+            if (relevantTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>✅ Everything Running Smoothly!</h3>
+                        <p>No tasks needing advisor support</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = relevantTasks.slice(0, 10).map(task => `
+                <div class="task-item">
+                    <div class="task-header">
+                        <div>
+                            <h4 class="task-title">${task.title || 'Untitled Task'}</h4>
+                            <div class="task-meta">
+                                <span>👤 ${task.assigned_to || 'Maggie'}</span>
+                                ${task.due_date ? `<span>📅 Due: ${formatDate(task.due_date)}</span>` : ''}
+                                ${task.priority ? `<span class="priority-badge priority-${task.priority}">${task.priority}</span>` : ''}
+                            </div>
+                        </div>
+                        <span class="status-badge status-${task.status}">${task.status}</span>
+                    </div>
+                    ${task.description ? `<p class="task-description">${task.description}</p>` : ''}
+                    <div class="task-actions">
+                        <button class="btn btn-small btn-secondary" onclick="addNote('task', '${task.id}')">
+                            💬 Add Note
+                        </button>
+                        ${task.status === 'blocked' ? `
+                            <button class="btn btn-small btn-success" onclick="suggestSolution('${task.id}')">
+                                💡 Suggest Solution
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderTasksError() {
+            document.getElementById('tasks-list').innerHTML = `
+                <div class="empty-state">
+                    <h3>⚠️ Unable to load tasks</h3>
+                    <button class="btn btn-primary" onclick="loadTasks()">Retry</button>
+                </div>
+            `;
+        }
+
+        async function loadBlockers() {
+            try {
+                const response = await fetch(`${API_URL}/api/sprints?type=blockers`);
+                if (!response.ok) throw new Error('Failed to load blockers');
+                
+                const result = await response.json();
+                blockersData = result.blockers || [];
+                renderBlockers();
+                console.log('[Blockers] ✅ Loaded', blockersData.length, 'blockers');
+            } catch (error) {
+                console.error('[Advisor Dashboard] Error loading blockers:', error);
+                renderBlockersError();
+            }
+        }
+
+        function renderBlockers() {
+            const container = document.getElementById('blockers-list');
+            
+            if (blockersData.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>🎉 No Blockers!</h3>
+                        <p>Everything is flowing smoothly</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = blockersData.map(blocker => `
+                <div class="blocker-item">
+                    <div class="blocker-header">
+                        <div class="blocker-title">
+                            <span>⚠️</span>
+                            <span>${blocker.title}</span>
+                        </div>
+                    </div>
+                    <p class="blocker-description">${blocker.description}</p>
+                    <div class="blocker-meta">
+                        Reported ${formatDate(blocker.created_at)}
+                    </div>
+                    <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                        <button class="btn btn-small btn-primary" onclick="suggestSolution('${blocker.id}')">
+                            💡 Suggest Solution
+                        </button>
+                        <button class="btn btn-small btn-secondary" onclick="addNote('blocker', '${blocker.id}')">
+                            💬 Add Note
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderBlockersError() {
+            document.getElementById('blockers-list').innerHTML = `
+                <div class="empty-state">
+                    <h3>⚠️ Unable to load blockers</h3>
+                    <button class="btn btn-primary" onclick="loadBlockers()">Retry</button>
+                </div>
+            `;
+        }
+
+        async function loadDiscussion() {
+            try {
+                const response = await fetch(`${API_URL}/api/advisor/discussion`);
+                if (!response.ok) throw new Error('Failed to load discussion');
+                
+                const result = await response.json();
+                discussionData = result.notes || [];
+                renderDiscussion();
+            } catch (error) {
+                console.error('[Advisor Dashboard] Error loading discussion:', error);
+                // Use sample data for demo
+                discussionData = [
+                    {
+                        id: 1,
+                        author: 'Maggie Forbes',
+                        role: 'admin',
+                        content: 'Starting this week with focus on podcast outreach and follow-ups!',
+                        created_at: new Date().toISOString()
+                    }
+                ];
+                renderDiscussion();
+            }
+        }
+
+        function renderDiscussion() {
+            const container = document.getElementById('discussion-list');
+            
+            if (discussionData.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>No discussion yet. Start the conversation!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = discussionData.slice(0, 10).reverse().map(note => {
+                const initials = note.author.split(' ').map(n => n[0]).join('').toUpperCase();
+                return `
+                    <div class="discussion-item">
+                        <div class="discussion-header">
+                            <div class="discussion-author">
+                                <div class="discussion-avatar">${initials}</div>
+                                <div class="discussion-author-info">
+                                    <h4>${note.author}</h4>
+                                    <p>${formatRelativeTime(note.created_at)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="discussion-content">${note.content}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadFiles() {
+            try {
+                const response = await fetch(`${API_URL}/api/sprints?type=files`);
+                if (!response.ok) throw new Error('Failed to load files');
+                
+                const result = await response.json();
+                filesData = result.files || [];
+                renderFiles();
+                console.log('[Files] ✅ Loaded', filesData.length, 'files');
+            } catch (error) {
+                console.error('[Advisor Dashboard] Error loading files:', error);
+                renderFilesError();
+            }
+        }
+
+        function renderFiles() {
+            const container = document.getElementById('files-list');
+            
+            if (filesData.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>📁 No Files Yet</h3>
+                        <p>Upload documents to share with Maggie</p>
+                        <button class="btn btn-primary" onclick="uploadFile()">📤 Upload First File</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filesData.map(file => `
+                <div class="file-item">
+                    <div class="file-info">
+                        <div class="file-icon">📄</div>
+                        <div class="file-details">
+                            <h4>${file.filename}</h4>
+                            <p>Uploaded ${formatDate(file.created_at)} • ${file.uploaded_by}</p>
+                        </div>
+                    </div>
+                    <button class="btn btn-small btn-secondary" onclick="downloadFile('${file.id}')">
+                        ⬇️ Download
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function renderFilesError() {
+            document.getElementById('files-list').innerHTML = `
+                <div class="empty-state">
+                    <h3>⚠️ Unable to load files</h3>
+                    <button class="btn btn-primary" onclick="loadFiles()">Retry</button>
+                </div>
+            `;
+        }
+
+        // Action Functions
+        async function postNote() {
+            const input = document.getElementById('note-input');
+            const content = input.value.trim();
+            
+            if (!content) {
+                alert('Please enter a note before posting.');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/api/advisor/discussion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        content,
+                        author: 'Advisor', // This would come from auth in production
+                        role: 'advisor'
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to post note');
+
+                input.value = '';
+                await loadDiscussion();
+            } catch (error) {
+                console.error('[Advisor Dashboard] Error posting note:', error);
+                alert('Failed to post note. Please try again.');
+            }
+        }
+
+        function addNote(type, id) {
+            const note = prompt(`Add a note about this ${type}:`);
+            if (!note) return;
+            
+            alert(`✅ Note added!\n\n"${note}"\n\nThis will be visible to Maggie in her dashboard.`);
+            console.log('Adding note:', { type, id, note });
+        }
+
+        function suggestSolution(id) {
+            const solution = prompt('Suggest a solution for this blocker:');
+            if (!solution) return;
+            
+            alert(`💡 Solution suggested!\n\n"${solution}"\n\nMaggie will receive a notification about your suggestion.`);
+            console.log('Suggesting solution:', { id, solution });
+        }
+
+        function uploadFile() {
+            document.getElementById('file-input').click();
+        }
+
+        function handleFileUpload() {
+            const input = document.getElementById('file-input');
+            const files = input.files;
+            
+            if (files.length === 0) return;
+
+            alert(`📤 Uploading ${files[0].name}...\n\nFile will be shared with Maggie.`);
+            console.log('Uploading file:', files[0].name);
+            
+            // TODO: Implement actual file upload
+            input.value = '';
+        }
+
+        function downloadFile(fileId) {
+            alert('📥 Downloading file...');
+            console.log('Downloading file:', fileId);
+        }
+
+        // Refresh functions
+        function refreshTasks() {
+            loadTasks();
+        }
+
+        function refreshBlockers() {
+            loadBlockers();
+        }
+
+        function refreshDiscussion() {
+            loadDiscussion();
+        }
+
+        function refreshFiles() {
+            loadFiles();
+        }
+
+        // Utility Functions
+        function updateConnectionStatus(status) {
+            const indicator = document.getElementById('status-indicator');
+            const text = document.getElementById('status-text');
+            
+            if (status === 'connected') {
+                indicator.className = 'status-indicator status-connected';
+                text.textContent = 'Live Connected';
+            } else if (status === 'error') {
+                indicator.className = 'status-indicator status-error';
+                text.textContent = 'Connection Error';
+            } else if (status === 'connecting') {
+                indicator.className = 'status-indicator';
+                indicator.style.background = '#f39c12';
+                text.textContent = 'Connecting...';
+            }
+        }
+
+        function updateLastUpdated() {
+            const now = new Date();
+            document.getElementById('last-updated').textContent = now.toLocaleTimeString();
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        function formatRelativeTime(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diff = now - date;
+            const hours = Math.floor(diff / 3600000);
+            
+            if (hours < 1) return 'Just now';
+            if (hours < 24) return `${hours}h ago`;
+            if (hours < 48) return 'Yesterday';
+            
+            const days = Math.floor(hours / 24);
+            if (days < 7) return `${days}d ago`;
+            
+            return formatDate(dateString);
+        }
+
+        function getCurrentSprintPeriod() {
+            const now = new Date();
+            const startOfWeek = new Date(now);
+            startOfWeek.setDate(now.getDate() - now.getDay());
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            
+            return `${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+        }
+
+        function getDaysRemainingInWeek() {
+            const now = new Date();
+            const dayOfWeek = now.getDay();
+            return 7 - dayOfWeek;
+        }
+
+        // Week number helper
+        Date.prototype.getWeek = function() {
+            const onejan = new Date(this.getFullYear(), 0, 1);
+            return Math.ceil((((this - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+        };
+
+        console.log('[Advisor Dashboard] System initialized');
+        console.log('[Advisor Dashboard] API Endpoint:', API_URL);
+
+        // Smooth scroll to section
+        function scrollToSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+    </script>
+</body>
+</html>

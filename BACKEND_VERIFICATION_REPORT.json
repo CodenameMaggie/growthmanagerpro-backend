@@ -1,0 +1,154 @@
+{
+  "report_metadata": {
+    "generated": "2025-11-12T07:30:00Z",
+    "source": "GitHub main branch (fresh pull)",
+    "total_api_files": 61,
+    "total_frontend_files": 38,
+    "verified_endpoints": 61,
+    "frontend_backend_alignment_rate": "54%",
+    "matched_endpoints": 33,
+    "missing_endpoints": 4,
+    "unused_endpoints": 28
+  },
+  "confirmed_active": {
+    "count": 33,
+    "description": "Endpoints confirmed in backend with verified frontend HTML references",
+    "endpoints": [
+      {"path": "/api/prospects", "file": "api/prospects.js", "status": "confirmed", "esm": true, "html_refs": ["contacts.html"]},
+      {"path": "/api/prospects/[id]", "file": "api/prospects/[id].js", "status": "confirmed", "esm": true, "html_refs": ["contacts.html"]},
+      {"path": "/api/users", "file": "api/users.js", "status": "confirmed", "esm": true, "html_refs": ["user-management.html"]},
+      {"path": "/api/users/[id]", "file": "api/users/[id].js", "status": "confirmed", "esm": true, "html_refs": ["settings.html", "edit-profile.html"]},
+      {"path": "/api/deals", "file": "api/deals.js", "status": "confirmed", "esm": true, "html_refs": ["deals.html"]},
+      {"path": "/api/pre-qualification-calls", "file": "api/pre-qualification-calls.js", "status": "confirmed", "esm": true, "html_refs": ["prequal-calls.html"]},
+      {"path": "/api/podcast-interviews", "file": "api/podcast-interviews.js", "status": "confirmed", "esm": true, "html_refs": ["podcast-calls.html"]},
+      {"path": "/api/discovery-calls", "file": "api/discovery-calls.js", "status": "confirmed", "esm": true, "html_refs": ["discovery-calls.html"]},
+      {"path": "/api/strategy-calls", "file": "api/strategy-calls.js", "status": "confirmed", "esm": true, "html_refs": ["strategy-calls.html"]},
+      {"path": "/api/ai-analyzer", "file": "api/ai-analyzer.js", "status": "confirmed", "esm": true, "html_refs": ["prequal-calls.html", "trigger-analysis.html"]},
+      {"path": "/api/smartlead-handoff", "file": "api/smartlead-handoff.js", "status": "confirmed", "esm": true, "html_refs": ["prequal-calls.html", "podcast-calls.html"]},
+      {"path": "/api/instantly-manager", "file": "api/instantly-manager.js", "status": "confirmed", "esm": true, "html_refs": ["contacts.html"]},
+      {"path": "/api/availability", "file": "api/availability.js", "status": "confirmed", "esm": true, "html_refs": ["availability.html"]},
+      {"path": "/api/availability-sync", "file": "api/availability-sync.js", "status": "confirmed", "esm": true, "html_refs": ["availability.html"]},
+      {"path": "/api/login", "file": "api/login.js", "status": "confirmed", "esm": true, "html_refs": ["login.html"]},
+      {"path": "/api/reset-password", "file": "api/reset-password.js", "status": "confirmed", "esm": true, "html_refs": ["reset-password.html"]},
+      {"path": "/api/request-password-reset", "file": "api/request-password-reset.js", "status": "confirmed", "esm": true, "html_refs": ["forgot-password.html"]},
+      {"path": "/api/dashboard", "file": "api/dashboard.js", "status": "confirmed", "esm": true, "html_refs": ["dashboard.html"]},
+      {"path": "/api/client-dashboard", "file": "api/client-dashboard.js", "status": "confirmed", "esm": true, "html_refs": ["client-dashboard.html"]},
+      {"path": "/api/advisor/advisor-clients", "file": "api/advisor/advisor-clients.js", "status": "confirmed", "esm": true, "html_refs": ["advisor-dashboard.html", "nav.js"]},
+      {"path": "/api/advisor/discussion", "file": "api/advisor/discussion.js", "status": "confirmed", "esm": true, "html_refs": ["advisor-dashboard.html"]},
+      {"path": "/api/campaigns", "file": "api/campaigns.js", "status": "confirmed", "esm": true, "html_refs": ["campaigns.html"]},
+      {"path": "/api/cash-flow", "file": "api/cash-flow.js", "status": "confirmed", "esm": true, "html_refs": ["cash-flow.html", "expense-tracker.html"]},
+      {"path": "/api/check-subdomain", "file": "api/check-subdomain.js", "status": "confirmed", "esm": true, "html_refs": ["signup-saas.html"]},
+      {"path": "/api/get-tenant", "file": "api/get-tenant.js", "status": "confirmed", "esm": true, "html_refs": ["auth-helper.js"]},
+      {"path": "/api/invitations", "file": "api/invitations.js", "status": "confirmed", "esm": true, "html_refs": ["user-management.html"]},
+      {"path": "/api/pipeline", "file": "api/pipeline.js", "status": "confirmed", "esm": true, "html_refs": ["pipeline.html"]},
+      {"path": "/api/signup-advisor", "file": "api/signup-advisor.js", "status": "confirmed", "esm": true, "html_refs": ["signup-advisor.html"]},
+      {"path": "/api/signup-client", "file": "api/signup-client.js", "status": "confirmed", "esm": true, "html_refs": ["signup-client.html"]},
+      {"path": "/api/signup-consultant", "file": "api/signup-consultant.js", "status": "confirmed", "esm": true, "html_refs": ["signup-consultant.html"]},
+      {"path": "/api/signup-invited", "file": "api/signup-invited.js", "status": "confirmed", "esm": true, "html_refs": ["accept-invitation.html"]},
+      {"path": "/api/signup-saas", "file": "api/signup-saas.js", "status": "confirmed", "esm": true, "html_refs": ["signup-saas.html"]},
+      {"path": "/api/sprints", "file": "api/sprints.js", "status": "confirmed", "esm": true, "html_refs": ["advisor-dashboard.html"], "note": "Used via ?type= query params"},
+      {"path": "/api/sprints/sprints-unified", "file": "api/sprints/sprints-unified.js", "status": "confirmed", "esm": true, "html_refs": ["sprints.html"]},
+      {"path": "/api/verify-invitation", "file": "api/verify-invitation.js", "status": "confirmed", "esm": true, "html_refs": ["accept-invitation.html"]}
+    ]
+  },
+  "missing_from_codebase": {
+    "count": 4,
+    "description": "Endpoints called by frontend but missing backend implementation",
+    "endpoints": [
+      {"path": "/api/client-dashboard/messages", "status": "missing", "called_by": ["client-dashboard.html"], "action": "Create endpoint or use alternative"},
+      {"path": "/api/ai-analyze-discovery", "status": "missing", "called_by": ["discovery-calls.html"], "action": "Create or clarify with ai-analyzer"},
+      {"path": "/api/clients/active", "status": "missing", "called_by": ["sprints.html"], "action": "Create or use prospects endpoint"},
+      {"path": "/api/clients/[id]/messages", "status": "missing", "called_by": ["sprints.html"], "action": "Create messaging endpoint"}
+    ]
+  },
+  "webhooks_external": {
+    "count": 3,
+    "description": "Webhook endpoints called by external services (not frontend)",
+    "endpoints": [
+      {"path": "/api/calendly-webhook", "file": "api/calendly-webhook.js", "status": "exists", "integration": "Calendly event notifications"},
+      {"path": "/api/zoom-webhook", "file": "api/zoom-webhook.js", "status": "exists", "integration": "Zoom recording/event notifications"},
+      {"path": "/api/webhook-stripe", "file": "api/webhook-stripe.js", "status": "exists", "integration": "Stripe payment events"}
+    ]
+  },
+  "backend_triggers_internal": {
+    "count": 4,
+    "description": "Backend-only endpoints triggered internally or by automation",
+    "endpoints": [
+      {"path": "/api/activate-client-portal", "file": "api/activate-client-portal.js", "status": "exists", "purpose": "Backend trigger for client activation"},
+      {"path": "/api/pre-qual-trigger", "file": "api/pre-qual-trigger.js", "status": "exists", "purpose": "Internal automation trigger"},
+      {"path": "/api/lead-capture", "file": "api/lead-capture.js", "status": "exists", "purpose": "Landing page form submission"},
+      {"path": "/api/engagement", "file": "api/engagement.js", "status": "exists", "purpose": "Task generation from templates"}
+    ]
+  },
+  "unused_no_frontend_refs": {
+    "count": 17,
+    "description": "Backend endpoints with no frontend references - review for removal",
+    "endpoints": [
+      {"path": "/api/advisor/disconnect-client", "file": "api/advisor/disconnect-client.js", "recommendation": "Review - May be unused"},
+      {"path": "/api/advisor/upload-file", "file": "api/advisor/upload-file.js", "recommendation": "Review - No UI integration"},
+      {"path": "/api/client-portal-auth", "file": "api/client-portal-auth.js", "recommendation": "DELETE - Frontend code in wrong location"},
+      {"path": "/api/client/disconnect-advisor", "file": "api/client/disconnect-advisor.js", "recommendation": "Review - May be unused"},
+      {"path": "/api/connection-request", "file": "api/connection-request.js", "recommendation": "Review - Advisor/client linking feature"},
+      {"path": "/api/consultant", "file": "api/consultant.js", "recommendation": "Review - Consultant role feature"},
+      {"path": "/api/customer-portal", "file": "api/customer-portal.js", "recommendation": "Keep - Stripe billing portal"},
+      {"path": "/api/deals/[id]", "file": "api/deals/[id].js", "recommendation": "Keep - Dynamic route, likely used in JavaScript"},
+      {"path": "/api/discovery-calls/[id]", "file": "api/discovery-calls/[id].js", "recommendation": "Keep - Dynamic route"},
+      {"path": "/api/id/users", "file": "api/id/users.js", "recommendation": "DELETE - Duplicate of users/[id]"},
+      {"path": "/api/podcast-interviews/[id]", "file": "api/podcast-interviews/[id].js", "recommendation": "Keep - Dynamic route"},
+      {"path": "/api/pre-qualification-calls/[id]", "file": "api/pre-qualification-calls/[id].js", "recommendation": "Keep - Dynamic route"},
+      {"path": "/api/proposals", "file": "api/proposals.js", "recommendation": "Review - Proposals feature not in frontend"},
+      {"path": "/api/strategy-calls/[id]", "file": "api/strategy-calls/[id].js", "recommendation": "Keep - Dynamic route"},
+      {"path": "/api/tasks", "file": "api/tasks.js", "recommendation": "Review - Task management not in frontend"},
+      {"path": "/api/upload-transcript", "file": "api/upload-transcript.js", "recommendation": "Review - May be used by upload form"},
+      {"path": "/api/zoom-manual-import", "file": "api/zoom-manual-import.js", "recommendation": "Review - Manual import tool"}
+    ]
+  },
+  "test_diagnostic": {
+    "count": 2,
+    "description": "Testing and diagnostic endpoints - keep for development",
+    "endpoints": [
+      {"path": "/api/test-env", "file": "api/test-env.js", "status": "exists", "keep": true, "purpose": "Environment variable testing"},
+      {"path": "/api/test-diagnostics", "file": "api/test-diagnostics.js", "status": "exists", "keep": true, "purpose": "Comprehensive backend testing"}
+    ]
+  },
+  "issues_to_fix": {
+    "count": 2,
+    "description": "Files that need immediate attention",
+    "issues": [
+      {"file": "api/id/users.js", "issue": "Duplicate of api/users/[id].js with syntax errors", "action": "DELETE"},
+      {"file": "api/client-portal-auth.js", "issue": "Frontend JavaScript code in backend API directory", "action": "DELETE or move to frontend"}
+    ]
+  },
+  "summary": {
+    "total_backend_files": 61,
+    "total_frontend_files": 38,
+    "confirmed_active": 33,
+    "missing_backend": 4,
+    "webhooks_external": 3,
+    "backend_triggers": 4,
+    "unused_endpoints": 17,
+    "test_diagnostic": 2,
+    "issues_to_fix": 2,
+    "esm_conversion": "100% complete",
+    "env_var_standardization": "100% complete",
+    "deployment_status": "operational",
+    "frontend_backend_alignment": "54%"
+  },
+  "next_actions": {
+    "priority_1_critical": [
+      "Create 4 missing backend endpoints: client-dashboard/messages, ai-analyze-discovery, clients/active, clients/[id]/messages",
+      "Delete api/id/users.js (duplicate with errors)",
+      "Delete api/client-portal-auth.js (frontend code in wrong location)"
+    ],
+    "priority_2_review": [
+      "Review 17 unused endpoints - determine if truly orphaned or called dynamically",
+      "Verify all [id] dynamic routes are working correctly",
+      "Test webhook integrations (Calendly, Zoom, Stripe)"
+    ],
+    "priority_3_optimization": [
+      "Add tenant isolation to any endpoints missing it",
+      "Standardize error handling across all endpoints",
+      "Add comprehensive logging for debugging"
+    ]
+  }
+}

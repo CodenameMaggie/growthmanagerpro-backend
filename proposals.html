@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposals - Growth Manager Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3498db;
+            --primary-dark: #2980b9;
+            --secondary: #2c3e50;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --white: #ffffff;
+            --shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            min-height: 100vh;
+            color: var(--dark);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 280px;
+            height: 100vh;
+            background: var(--white);
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .logo {
+            padding: 2rem;
+            text-align: center;
+            border-bottom: 1px solid var(--light);
+        }
+
+        .logo h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-links {
+            padding: 1rem 0;
+        }
+
+        .nav-links a {
+            display: flex;
+            align-items: center;
+            padding: 1rem 2rem;
+            color: var(--dark);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: var(--white);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1rem;
+        }
+
+        /* Stats Dashboard */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--white);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--dark);
+        }
+
+        .stat-card.success .value {
+            color: var(--success);
+        }
+
+        .stat-card.warning .value {
+            color: var(--warning);
+        }
+
+        .stat-card.info .value {
+            color: var(--info);
+        }
+
+        /* Controls */
+        .controls {
+            background: var(--white);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--light);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .filter-group {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 0.75rem 1.5rem;
+            border: 2px solid var(--light);
+            background: var(--white);
+            color: var(--dark);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--primary);
+            background: var(--light);
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: var(--white);
+            border-color: var(--primary);
+        }
+
+        .btn-primary {
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: var(--white);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: transform 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Proposals Grid */
+        .proposals-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .proposal-card {
+            background: var(--white);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .proposal-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .proposal-header {
+            padding: 1.5rem;
+            border-bottom: 2px solid var(--light);
+        }
+
+        .proposal-header h3 {
+            font-size: 1.25rem;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .proposal-header .company {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .proposal-body {
+            padding: 1.5rem;
+        }
+
+        .proposal-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .proposal-info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .proposal-info-item label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .proposal-info-item span {
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.draft {
+            background: #95a5a6;
+            color: var(--white);
+        }
+
+        .status-badge.sent {
+            background: var(--info);
+            color: var(--white);
+        }
+
+        .status-badge.accepted {
+            background: var(--success);
+            color: var(--white);
+        }
+
+        .status-badge.rejected {
+            background: var(--danger);
+            color: var(--white);
+        }
+
+        .proposal-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--light);
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 0.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .btn-view {
+            background: var(--info);
+            color: var(--white);
+        }
+
+        .btn-view:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-edit {
+            background: var(--warning);
+            color: var(--white);
+        }
+
+        .btn-edit:hover {
+            opacity: 0.8;
+        }
+
+        .btn-delete {
+            background: var(--danger);
+            color: var(--white);
+        }
+
+        .btn-delete:hover {
+            opacity: 0.8;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--white);
+            border-radius: 12px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            padding: 2rem;
+            border-bottom: 2px solid var(--light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 1.5rem;
+            color: var(--dark);
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+
+        .close-modal:hover {
+            color: var(--dark);
+        }
+
+        .modal-body {
+            padding: 2rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group.full-width {
+            grid-column: span 2;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 0.75rem;
+            border: 2px solid var(--light);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .modal-footer {
+            padding: 1.5rem 2rem;
+            border-top: 2px solid var(--light);
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .btn-cancel {
+            padding: 0.75rem 1.5rem;
+            background: var(--light);
+            color: var(--dark);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        .btn-cancel:hover {
+            background: #bdc3c7;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: var(--white);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            color: var(--dark);
+            margin-bottom: 1rem;
+        }
+
+        .empty-state p {
+            color: #7f8c8d;
+            margin-bottom: 2rem;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid var(--light);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 1rem;
+            }
+
+            .proposals-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-group.full-width {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            <h1>Growth Manager Pro</h1>
+        </div>
+        <nav class="nav-links" id="nav-links">
+            <!-- Navigation will be loaded by nav.js -->
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Header -->
+        <div class="header">
+            <h1>Proposals</h1>
+            <p>Manage your client proposals from strategy to signed deals</p>
+        </div>
+
+        <!-- Stats Dashboard -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Proposals</h3>
+                <div class="value" id="stat-total">0</div>
+            </div>
+            <div class="stat-card info">
+                <h3>Sent</h3>
+                <div class="value" id="stat-sent">0</div>
+            </div>
+            <div class="stat-card success">
+                <h3>Accepted</h3>
+                <div class="value" id="stat-accepted">0</div>
+            </div>
+            <div class="stat-card warning">
+                <h3>Total Value</h3>
+                <div class="value" id="stat-value">$0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Win Rate</h3>
+                <div class="value" id="stat-win-rate">0%</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="search-input" placeholder="Search proposals by name or company...">
+            </div>
+            <div class="filter-group">
+                <button class="filter-btn active" data-status="all">All</button>
+                <button class="filter-btn" data-status="draft">Draft</button>
+                <button class="filter-btn" data-status="sent">Sent</button>
+                <button class="filter-btn" data-status="accepted">Accepted</button>
+                <button class="filter-btn" data-status="rejected">Rejected</button>
+            </div>
+            <button class="btn-primary" onclick="openCreateModal()">+ New Proposal</button>
+        </div>
+
+        <!-- Proposals Grid -->
+        <div id="proposals-container">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p style="color: var(--white); margin-top: 1rem;">Loading proposals...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create/Edit Modal -->
+    <div class="modal" id="proposal-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Create New Proposal</h2>
+                <button class="close-modal" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="proposal-form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="prospect_name">Prospect Name *</label>
+                            <input type="text" id="prospect_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="company">Company</label>
+                            <input type="text" id="company">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email">
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Phone</label>
+                            <input type="tel" id="phone">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="proposal_title">Proposal Title</label>
+                            <input type="text" id="proposal_title" value="Growth Management Proposal">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="scope_of_work">Scope of Work</label>
+                            <textarea id="scope_of_work" placeholder="Describe the services and deliverables..."></textarea>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="deliverables">Deliverables</label>
+                            <textarea id="deliverables" placeholder="List key deliverables..."></textarea>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="success_metrics">Success Metrics</label>
+                            <textarea id="success_metrics" placeholder="Define success criteria..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="timeline">Timeline</label>
+                            <input type="text" id="timeline" placeholder="e.g., 6 months">
+                        </div>
+                        <div class="form-group">
+                            <label for="pricing_model">Pricing Model</label>
+                            <select id="pricing_model">
+                                <option value="monthly_retainer">Monthly Retainer</option>
+                                <option value="project_based">Project-Based</option>
+                                <option value="performance_based">Performance-Based</option>
+                                <option value="hybrid">Hybrid</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="total_contract_value">Total Contract Value</label>
+                            <input type="number" id="total_contract_value" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="monthly_fee">Monthly Fee</label>
+                            <input type="number" id="monthly_fee" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="setup_fee">Setup Fee</label>
+                            <input type="number" id="setup_fee" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="payment_terms">Payment Terms</label>
+                            <select id="payment_terms">
+                                <option value="Net 30">Net 30</option>
+                                <option value="Net 15">Net 15</option>
+                                <option value="Due on Receipt">Due on Receipt</option>
+                                <option value="50/50">50/50</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="recommended_tier">Recommended Tier</label>
+                            <input type="text" id="recommended_tier" placeholder="e.g., Growth Accelerator">
+                        </div>
+                        <div class="form-group">
+                            <label for="recommended_systems">Recommended Systems</label>
+                            <input type="text" id="recommended_systems" placeholder="e.g., CRM, Email, Automation">
+                        </div>
+                        <div class="form-group">
+                            <label for="valid_until">Valid Until</label>
+                            <input type="date" id="valid_until">
+                        </div>
+                        <div class="form-group">
+                            <label for="status">Status</label>
+                            <select id="status">
+                                <option value="draft">Draft</option>
+                                <option value="sent">Sent</option>
+                                <option value="accepted">Accepted</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="proposal_url">Proposal URL</label>
+                            <input type="url" id="proposal_url" placeholder="https://...">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="presentation_url">Presentation URL</label>
+                            <input type="url" id="presentation_url" placeholder="https://...">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="notes">Notes</label>
+                            <textarea id="notes" placeholder="Client-facing notes..."></textarea>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="internal_notes">Internal Notes</label>
+                            <textarea id="internal_notes" placeholder="Internal team notes..."></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="btn-primary" onclick="saveProposal()">Save Proposal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="auth-helper.js"></script>
+    <script src="nav.js"></script>
+    <script>
+        const API_BASE = 'https://growthmanagerpro-backend.vercel.app';
+        let currentTenantId = null;
+        let currentUser = null;
+        let allProposals = [];
+        let currentFilter = 'all';
+        let editingProposalId = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Initialize tenant and user
+                const authData = await AuthHelper.initTenant();
+                currentTenantId = authData.tenantId;
+                currentUser = authData.user;
+
+                console.log('[Proposals] Initialized with tenant:', currentTenantId);
+
+                // Load proposals
+                await loadProposals();
+
+                // Setup event listeners
+                setupEventListeners();
+
+            } catch (error) {
+                console.error('[Proposals] Initialization error:', error);
+                window.location.href = '/login.html';
+            }
+        });
+
+        function setupEventListeners() {
+            // Search
+            document.getElementById('search-input').addEventListener('input', filterProposals);
+
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    currentFilter = e.target.dataset.status;
+                    filterProposals();
+                });
+            });
+        }
+
+        async function loadProposals() {
+            try {
+                console.log('[Proposals] Fetching from:', `${API_BASE}/api/proposals?tenant_id=${currentTenantId}`);
+
+                const response = await fetch(`${API_BASE}/api/proposals?tenant_id=${currentTenantId}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load proposals');
+                }
+
+                allProposals = data.proposals || [];
+                console.log('[Proposals] Loaded:', allProposals.length);
+
+                updateStats();
+                displayProposals(allProposals);
+
+            } catch (error) {
+                console.error('[Proposals] Load error:', error);
+                document.getElementById('proposals-container').innerHTML = `
+                    <div class="empty-state">
+                        <h3>Connection Error</h3>
+                        <p style="color: #7f8c8d; margin-bottom: 1rem;">Could not connect to: ${API_BASE}/api/proposals</p>
+                        <p style="color: #e74c3c;">${error.message}</p>
+                        <button class="btn-primary" onclick="loadProposals()">Retry</button>
+                    </div>
+                `;
+            }
+        }
+
+        function updateStats() {
+            const total = allProposals.length;
+            const sent = allProposals.filter(p => p.status === 'sent').length;
+            const accepted = allProposals.filter(p => p.status === 'accepted').length;
+            const totalValue = allProposals.reduce((sum, p) => sum + (parseFloat(p.total_contract_value) || 0), 0);
+            const winRate = sent > 0 ? Math.round((accepted / sent) * 100) : 0;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-sent').textContent = sent;
+            document.getElementById('stat-accepted').textContent = accepted;
+            document.getElementById('stat-value').textContent = `$${totalValue.toLocaleString()}`;
+            document.getElementById('stat-win-rate').textContent = `${winRate}%`;
+        }
+
+        function displayProposals(proposals) {
+            const container = document.getElementById('proposals-container');
+
+            if (proposals.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No Proposals Found</h3>
+                        <p>Create your first proposal to get started</p>
+                        <button class="btn-primary" onclick="openCreateModal()">+ Create Proposal</button>
+                    </div>
+                `;
+                return;
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'proposals-grid';
+
+            proposals.forEach(proposal => {
+                const card = createProposalCard(proposal);
+                grid.appendChild(card);
+            });
+
+            container.innerHTML = '';
+            container.appendChild(grid);
+        }
+
+        function createProposalCard(proposal) {
+            const card = document.createElement('div');
+            card.className = 'proposal-card';
+
+            const formattedValue = proposal.total_contract_value
+                ? `$${parseFloat(proposal.total_contract_value).toLocaleString()}`
+                : 'Not set';
+
+            const formattedDate = proposal.created_at
+                ? new Date(proposal.created_at).toLocaleDateString()
+                : '';
+
+            card.innerHTML = `
+                <div class="proposal-header">
+                    <h3>${proposal.prospect_name}</h3>
+                    <div class="company">${proposal.company || 'No company'}</div>
+                </div>
+                <div class="proposal-body">
+                    <div class="proposal-info">
+                        <div class="proposal-info-item">
+                            <label>Value:</label>
+                            <span>${formattedValue}</span>
+                        </div>
+                        <div class="proposal-info-item">
+                            <label>Timeline:</label>
+                            <span>${proposal.timeline || 'Not set'}</span>
+                        </div>
+                        <div class="proposal-info-item">
+                            <label>Created:</label>
+                            <span>${formattedDate}</span>
+                        </div>
+                        <div class="proposal-info-item">
+                            <label>Status:</label>
+                            <span class="status-badge ${proposal.status}">${proposal.status.toUpperCase()}</span>
+                        </div>
+                    </div>
+                    <div class="proposal-actions">
+                        <button class="btn-action btn-view" onclick="viewProposal('${proposal.id}')">View</button>
+                        <button class="btn-action btn-edit" onclick="editProposal('${proposal.id}')">Edit</button>
+                        <button class="btn-action btn-delete" onclick="deleteProposal('${proposal.id}')">Delete</button>
+                    </div>
+                </div>
+            `;
+
+            return card;
+        }
+
+        function filterProposals() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+
+            let filtered = allProposals;
+
+            // Filter by status
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(p => p.status === currentFilter);
+            }
+
+            // Filter by search term
+            if (searchTerm) {
+                filtered = filtered.filter(p =>
+                    (p.prospect_name && p.prospect_name.toLowerCase().includes(searchTerm)) ||
+                    (p.company && p.company.toLowerCase().includes(searchTerm)) ||
+                    (p.proposal_title && p.proposal_title.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            displayProposals(filtered);
+        }
+
+        function openCreateModal() {
+            editingProposalId = null;
+            document.getElementById('modal-title').textContent = 'Create New Proposal';
+            document.getElementById('proposal-form').reset();
+            document.getElementById('proposal-modal').classList.add('active');
+        }
+
+        function editProposal(id) {
+            const proposal = allProposals.find(p => p.id === id);
+            if (!proposal) return;
+
+            editingProposalId = id;
+            document.getElementById('modal-title').textContent = 'Edit Proposal';
+
+            // Populate form
+            document.getElementById('prospect_name').value = proposal.prospect_name || '';
+            document.getElementById('company').value = proposal.company || '';
+            document.getElementById('email').value = proposal.email || '';
+            document.getElementById('phone').value = proposal.phone || '';
+            document.getElementById('proposal_title').value = proposal.proposal_title || '';
+            document.getElementById('scope_of_work').value = proposal.scope_of_work || '';
+            document.getElementById('deliverables').value = proposal.deliverables || '';
+            document.getElementById('success_metrics').value = proposal.success_metrics || '';
+            document.getElementById('timeline').value = proposal.timeline || '';
+            document.getElementById('pricing_model').value = proposal.pricing_model || 'monthly_retainer';
+            document.getElementById('total_contract_value').value = proposal.total_contract_value || '';
+            document.getElementById('monthly_fee').value = proposal.monthly_fee || '';
+            document.getElementById('setup_fee').value = proposal.setup_fee || '';
+            document.getElementById('payment_terms').value = proposal.payment_terms || 'Net 30';
+            document.getElementById('recommended_tier').value = proposal.recommended_tier || '';
+            document.getElementById('recommended_systems').value = proposal.recommended_systems || '';
+            document.getElementById('valid_until').value = proposal.valid_until || '';
+            document.getElementById('status').value = proposal.status || 'draft';
+            document.getElementById('proposal_url').value = proposal.proposal_url || '';
+            document.getElementById('presentation_url').value = proposal.presentation_url || '';
+            document.getElementById('notes').value = proposal.notes || '';
+            document.getElementById('internal_notes').value = proposal.internal_notes || '';
+
+            document.getElementById('proposal-modal').classList.add('active');
+        }
+
+        function viewProposal(id) {
+            const proposal = allProposals.find(p => p.id === id);
+            if (!proposal) return;
+
+            alert(`View Proposal Details:\n\nProspect: ${proposal.prospect_name}\nCompany: ${proposal.company || 'N/A'}\nValue: $${proposal.total_contract_value || 0}\nStatus: ${proposal.status}\n\n(Full view functionality to be implemented)`);
+        }
+
+        async function deleteProposal(id) {
+            if (!confirm('Are you sure you want to delete this proposal?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/proposals?id=${id}&tenant_id=${currentTenantId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to delete proposal');
+                }
+
+                await loadProposals();
+                alert('Proposal deleted successfully!');
+
+            } catch (error) {
+                console.error('[Proposals] Delete error:', error);
+                alert('Error deleting proposal: ' + error.message);
+            }
+        }
+
+        async function saveProposal() {
+            try {
+                const proposalData = {
+                    prospect_name: document.getElementById('prospect_name').value,
+                    company: document.getElementById('company').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value,
+                    proposal_title: document.getElementById('proposal_title').value,
+                    scope_of_work: document.getElementById('scope_of_work').value,
+                    deliverables: document.getElementById('deliverables').value,
+                    success_metrics: document.getElementById('success_metrics').value,
+                    timeline: document.getElementById('timeline').value,
+                    pricing_model: document.getElementById('pricing_model').value,
+                    total_contract_value: parseFloat(document.getElementById('total_contract_value').value) || null,
+                    monthly_fee: parseFloat(document.getElementById('monthly_fee').value) || null,
+                    setup_fee: parseFloat(document.getElementById('setup_fee').value) || 0,
+                    payment_terms: document.getElementById('payment_terms').value,
+                    recommended_tier: document.getElementById('recommended_tier').value,
+                    recommended_systems: document.getElementById('recommended_systems').value,
+                    valid_until: document.getElementById('valid_until').value,
+                    status: document.getElementById('status').value,
+                    proposal_url: document.getElementById('proposal_url').value,
+                    presentation_url: document.getElementById('presentation_url').value,
+                    notes: document.getElementById('notes').value,
+                    internal_notes: document.getElementById('internal_notes').value
+                };
+
+                const isEditing = !!editingProposalId;
+                const url = isEditing
+                    ? `${API_BASE}/api/proposals?id=${editingProposalId}&tenant_id=${currentTenantId}`
+                    : `${API_BASE}/api/proposals?tenant_id=${currentTenantId}`;
+                const method = isEditing ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(proposalData)
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to save proposal');
+                }
+
+                closeModal();
+                await loadProposals();
+                alert(isEditing ? 'Proposal updated successfully!' : 'Proposal created successfully!');
+
+            } catch (error) {
+                console.error('[Proposals] Save error:', error);
+                alert('Error saving proposal: ' + error.message);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('proposal-modal').classList.remove('active');
+            document.getElementById('proposal-form').reset();
+            editingProposalId = null;
+        }
+
+        console.log('[Proposals] Script initialized');
+        console.log('[Proposals] API Endpoint:', `${API_BASE}/api/proposals`);
+    </script>
+</body>
+</html>

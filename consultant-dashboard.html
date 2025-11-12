@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consultant Dashboard - Growth Manager Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            left: 0;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .logo-section {
+            padding: 30px 25px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .logo-section h1 {
+            font-size: 22px;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .logo-section .subtitle {
+            font-size: 13px;
+            color: #7f8c8d;
+        }
+
+        .role-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 12px;
+        }
+
+        .nav-menu {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 0;
+        }
+
+        .nav-section-title {
+            padding: 0 25px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #95a5a6;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 20px 0 10px 0;
+        }
+
+        .nav-item {
+            padding: 12px 25px;
+            color: #2c3e50;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            background: #f8f9fa;
+            color: #3498db;
+        }
+
+        .nav-item.active {
+            background: linear-gradient(90deg, #e3f2fd 0%, transparent 100%);
+            color: #3498db;
+            border-left: 3px solid #3498db;
+            font-weight: 600;
+        }
+
+        .nav-item .icon {
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .user-section {
+            padding: 20px 25px;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .user-details {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            width: 100%;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .header {
+            margin-bottom: 35px;
+        }
+
+        .header h2 {
+            color: white;
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: rgba(255,255,255,0.9);
+            font-size: 16px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 35px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .stat-change {
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #7f8c8d;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 25px;
+        }
+
+        .content-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .view-all-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .view-all-btn:hover {
+            background: #2980b9;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.3;
+        }
+
+        .quick-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .quick-actions .view-all-btn {
+            width: 100%;
+            padding: 12px;
+        }
+
+        .client-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .client-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            border: 1px solid #ecf0f1;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .client-item:hover {
+            border-color: #3498db;
+            background: #f8f9fa;
+        }
+
+        .client-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .client-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .client-details {
+            flex: 1;
+        }
+
+        .client-name {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .client-status {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+
+        .activity-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .activity-item {
+            padding: 12px;
+            border-left: 3px solid #3498db;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .activity-title {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .activity-time {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+            
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo-section">
+            <h1>Growth Manager Pro</h1>
+            <p class="subtitle">Consultant Portal</p>
+            <span class="role-badge" id="user-role-badge">Consultant</span>
+        </div>
+
+        <nav class="nav-menu">
+            <div class="nav-section-title">Overview</div>
+            <a href="consultant-dashboard.html" class="nav-item active">
+                <span class="icon">📊</span>
+                <span>Dashboard</span>
+            </a>
+
+            <div class="nav-section-title">Client Management</div>
+            <a href="contacts.html" class="nav-item">
+                <span class="icon">👥</span>
+                <span>Clients</span>
+            </a>
+            <a href="pipeline.html" class="nav-item">
+                <span class="icon">🎯</span>
+                <span>Client Success</span>
+            </a>
+
+            <div class="nav-section-title">Account</div>
+            <a href="edit-profile.html" class="nav-item">
+                <span class="icon">👤</span>
+                <span>Profile</span>
+            </a>
+            <a href="settings.html" class="nav-item">
+                <span class="icon">⚙️</span>
+                <span>Settings</span>
+            </a>
+        </nav>
+
+        <div class="user-section">
+            <div class="user-info">
+                <div class="user-avatar" id="user-avatar">?</div>
+                <div class="user-details">
+                    <div class="user-name" id="user-name">Loading...</div>
+                    <div class="user-role" id="user-role">Consultant</div>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h2>Welcome Back! 👋</h2>
+            <p>Here's an overview of your consulting practice</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Clients</div>
+                <div class="stat-value" id="total-clients">-</div>
+                <div class="stat-change">
+                    <span id="client-limit">of 5 limit</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">Active Contracts</div>
+                <div class="stat-value" id="active-contracts">-</div>
+                <div class="stat-change">
+                    <span id="contracts-progress">0 in progress</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">Total Revenue</div>
+                <div class="stat-value" id="total-revenue">$0</div>
+                <div class="stat-change">
+                    <span>This month</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">Deliverables</div>
+                <div class="stat-value" id="deliverables-count">-</div>
+                <div class="stat-change">
+                    <span id="deliverables-total">of 0 total</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-grid">
+            <div class="content-card">
+                <div class="card-header">
+                    <h3 class="card-title">Active Clients</h3>
+                    <a href="contacts.html" class="view-all-btn">View All</a>
+                </div>
+                <div id="clients-container">
+                    <div class="loading">Loading clients...</div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <div class="card-header">
+                    <h3 class="card-title">Recent Activity</h3>
+                    <a href="pipeline.html" class="view-all-btn">View Details</a>
+                </div>
+                <div id="activity-container">
+                    <div class="loading">Loading activity...</div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <div class="card-header">
+                    <h3 class="card-title">Quick Actions</h3>
+                </div>
+                <div class="quick-actions">
+                    <a href="user-management.html" class="view-all-btn">➕ Invite New Client</a>
+                    <a href="pipeline.html" class="view-all-btn">🎯 Track Client Success</a>
+                    <a href="edit-profile.html" class="view-all-btn">👤 Edit Profile</a>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <div class="card-header">
+                    <h3 class="card-title">Your Plan</h3>
+                </div>
+                <div id="plan-container" style="padding: 20px; text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: #3498db; margin-bottom: 10px;">
+                        Starter
+                    </div>
+                    <div style="font-size: 14px; color: #7f8c8d; margin-bottom: 20px;">
+                        $99/month
+                    </div>
+                    <div style="font-size: 13px; color: #7f8c8d;">
+                        Up to 5 active clients
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth-helper.js"></script>
+    <script>
+        let currentTenantId = null;
+
+        // Logout handler
+        function handleLogout() {
+            AuthHelper.logout();
+        }
+
+        // Initialize page
+        async function initPage() {
+            console.log('[Consultant Dashboard] Initializing...');
+
+            // Initialize tenant context
+            await AuthHelper.initTenant();
+            currentTenantId = AuthHelper.getTenantId();
+            console.log('[Consultant Dashboard] Tenant ID:', currentTenantId);
+
+            // Protect page - only consultants can access
+            const granted = await AuthHelper.protectPage('consultant-dashboard.html');
+            if (!granted) {
+                console.log('[Consultant Dashboard] Access denied');
+                return;
+            }
+
+            const user = AuthHelper.getCurrentUser();
+            console.log('[Consultant Dashboard] Current user:', user);
+
+            // Verify user is consultant
+            if (user.role !== 'consultant') {
+                console.log('[Consultant Dashboard] User is not a consultant');
+                alert('This page is only accessible to consultants.');
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            // Update user info in sidebar
+            updateUserInfo(user);
+
+            // Load dashboard data
+            await loadDashboardData();
+        }
+
+        // Update user info in sidebar
+        function updateUserInfo(user) {
+            const displayName = user.full_name || user.name || user.email.split('@')[0];
+            const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+
+            document.getElementById('user-name').textContent = displayName;
+            document.getElementById('user-avatar').textContent = initials;
+            document.getElementById('user-role').textContent = 'Consultant';
+            document.getElementById('user-role-badge').textContent = 'Consultant';
+        }
+
+        // Load all dashboard data
+        async function loadDashboardData() {
+            console.log('[Consultant Dashboard] Loading data...');
+
+            await Promise.all([
+                loadClients(),
+                loadStats(),
+                loadRecentActivity()
+            ]);
+        }
+
+        // Load clients
+        async function loadClients() {
+            try {
+                const user = AuthHelper.getCurrentUser();
+                
+                // Get clients assigned to this consultant
+                const response = await fetch(
+                    `https://growthmanagerpro-backend.vercel.app/api/users?tenant_id=${currentTenantId}`,
+                    {
+                        headers: {
+                            'X-Tenant-ID': currentTenantId
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to load clients');
+                }
+
+                const data = await response.json();
+                console.log('[Consultant Dashboard] Users data:', data);
+
+                // Filter for clients only
+                const clients = data.users?.filter(u => u.user_type === 'client') || [];
+                console.log('[Consultant Dashboard] Clients:', clients);
+
+                displayClients(clients);
+            } catch (error) {
+                console.error('[Consultant Dashboard] Error loading clients:', error);
+                document.getElementById('clients-container').innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">⚠️</div>
+                        <p>Error loading clients</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Display clients
+        function displayClients(clients) {
+            const container = document.getElementById('clients-container');
+
+            if (clients.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">👥</div>
+                        <p>No clients yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = `
+                <div class="client-list">
+                    ${clients.slice(0, 5).map(client => `
+                        <div class="client-item">
+                            <div class="client-info">
+                                <div class="client-avatar">${getInitials(client.full_name || client.email)}</div>
+                                <div class="client-details">
+                                    <div class="client-name">${client.full_name || client.email.split('@')[0]}</div>
+                                    <div class="client-status">${client.status || 'Active'}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Load stats
+        async function loadStats() {
+            try {
+                const user = AuthHelper.getCurrentUser();
+                
+                // Get all users to count clients
+                const usersResponse = await fetch(
+                    `https://growthmanagerpro-backend.vercel.app/api/users?tenant_id=${currentTenantId}`,
+                    {
+                        headers: {
+                            'X-Tenant-ID': currentTenantId
+                        }
+                    }
+                );
+
+                if (!usersResponse.ok) {
+                    throw new Error('Failed to load stats');
+                }
+
+                const usersData = await usersResponse.json();
+                const clients = usersData.users?.filter(u => u.user_type === 'client') || [];
+
+                // Get deals to count contracts
+                const dealsResponse = await fetch(
+                    `https://growthmanagerpro-backend.vercel.app/api/deals?tenant_id=${currentTenantId}`,
+                    {
+                        headers: {
+                            'X-Tenant-ID': currentTenantId
+                        }
+                    }
+                );
+
+                let totalRevenue = 0;
+                let activeContracts = 0;
+
+                if (dealsResponse.ok) {
+                    const dealsData = await dealsResponse.json();
+                    const deals = dealsData.deals || [];
+                    
+                    activeContracts = deals.filter(d => d.stage === 'won').length;
+                    totalRevenue = deals
+                        .filter(d => d.stage === 'won')
+                        .reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+                }
+
+                // Update stats
+                document.getElementById('total-clients').textContent = clients.length;
+                document.getElementById('client-limit').textContent = `of 5 limit`;
+                
+                document.getElementById('active-contracts').textContent = activeContracts;
+                document.getElementById('contracts-progress').textContent = `${activeContracts} in progress`;
+                
+                document.getElementById('total-revenue').textContent = `$${totalRevenue.toLocaleString()}`;
+                
+                document.getElementById('deliverables-count').textContent = '0';
+                document.getElementById('deliverables-total').textContent = 'of 0 total';
+
+            } catch (error) {
+                console.error('[Consultant Dashboard] Error loading stats:', error);
+            }
+        }
+
+        // Load recent activity
+        async function loadRecentActivity() {
+            try {
+                // Get recent prospects/deals activity
+                const response = await fetch(
+                    `https://growthmanagerpro-backend.vercel.app/api/prospects?tenant_id=${currentTenantId}`,
+                    {
+                        headers: {
+                            'X-Tenant-ID': currentTenantId
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to load activity');
+                }
+
+                const data = await response.json();
+                const prospects = data.prospects || [];
+
+                // Get recently updated prospects
+                const recentProspects = prospects
+                    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+                    .slice(0, 5);
+
+                displayActivity(recentProspects);
+            } catch (error) {
+                console.error('[Consultant Dashboard] Error loading activity:', error);
+                document.getElementById('activity-container').innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">⚠️</div>
+                        <p>Error loading activity</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Display recent activity
+        function displayActivity(prospects) {
+            const container = document.getElementById('activity-container');
+
+            if (prospects.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">📋</div>
+                        <p>No recent activity</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const html = `
+                <div class="activity-list">
+                    ${prospects.map(prospect => `
+                        <div class="activity-item">
+                            <div class="activity-title">${prospect.full_name || prospect.email}</div>
+                            <div class="activity-time">Updated ${formatDate(prospect.updated_at)}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // Helper: Get initials from name
+        function getInitials(name) {
+            if (!name) return '?';
+            return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        }
+
+        // Helper: Format date
+        function formatDate(dateString) {
+            if (!dateString) return 'Unknown';
+            
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffTime = Math.abs(now - date);
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+            if (diffDays === 0) return 'Today';
+            if (diffDays === 1) return 'Yesterday';
+            if (diffDays < 7) return `${diffDays} days ago`;
+            if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+            
+            return date.toLocaleDateString();
+        }
+
+        // Initialize on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPage);
+        } else {
+            initPage();
+        }
+    </script>
+</body>
+</html>
