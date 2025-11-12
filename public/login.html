@@ -307,13 +307,13 @@
             // Determine redirect if not specified
             if (!redirectTo) {
                 if (role === 'admin' || role === 'saas') {
-                    redirectTo = '/dashboard.html';
+                    redirectTo = 'https://app.growthmanagerpro.com/dashboard';
                 } else if (role === 'consultant' || role === 'advisor') {
-                    redirectTo = '/advisor-dashboard.html';
+                    redirectTo = 'https://app.growthmanagerpro.com/advisor-dashboard';
                 } else if (role === 'client') {
-                    redirectTo = '/client-dashboard.html';
+                    redirectTo = 'https://app.growthmanagerpro.com/client-dashboard';
                 } else {
-                    redirectTo = '/dashboard.html';
+                    redirectTo = 'https://app.growthmanagerpro.com/dashboard';
                 }
             }
 
