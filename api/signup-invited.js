@@ -142,23 +142,23 @@ module.exports = async (req, res) => {
 let redirectTo, userType, permissions;
 
 if (newUser.role === 'admin' || newUser.role === 'saas') {
-  redirectTo = '/dashboard.html';
+  redirectTo = 'https://app.growthmanagerpro.com/dashboard';
   userType = 'admin';
   permissions = 'all';
-else if (newUser.role === 'advisor') {
-  redirectTo = '/advisor-dashboard.html';
+} else if (newUser.role === 'advisor') {
+  redirectTo = 'https://app.growthmanagerpro.com/advisor-dashboard';
   userType = 'advisor';
   permissions = ['advisor-dashboard.view'];
 } else if (newUser.role === 'consultant') {
-  redirectTo = '/consultant-dashboard.html';  // ✅ Separate redirect
+  redirectTo = 'https://app.growthmanagerpro.com/consultant-dashboard';
   userType = 'consultant';
   permissions = ['consultant-dashboard.view'];
 } else if (newUser.role === 'client') {
-  redirectTo = '/client-dashboard.html';
+  redirectTo = 'https://app.growthmanagerpro.com/client-dashboard';
   userType = 'client';
   permissions = ['client-dashboard.view'];
 } else {
-  redirectTo = '/dashboard.html';
+  redirectTo = 'https://app.growthmanagerpro.com/dashboard';
   userType = 'admin';
   permissions = 'all';
 }

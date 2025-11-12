@@ -260,7 +260,7 @@ module.exports = async (req, res) => {
         permissions: newUser.permissions,
         tier: tier,
         trialEndsAt: newUser.trial_ends_at,
-        redirectTo: 'consultant-dashboard.html'
+        redirectTo: 'https://app.growthmanagerpro.com/consultant-dashboard'
       },
       token: 'demo-token-' + newUser.id,
       message: 'Account created successfully! Your 14-day free trial starts now.'

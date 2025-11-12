@@ -65,16 +65,16 @@ module.exports = async (req, res) => {
         let userType;
 
         if (userRole === 'admin' || userRole === 'saas') {
-          redirectTo = '/dashboard.html';
+          redirectTo = 'https://app.growthmanagerpro.com/dashboard';
           userType = 'admin';
         } else if (userRole === 'advisor') {
-          redirectTo = '/advisor-dashboard.html';
+          redirectTo = 'https://app.growthmanagerpro.com/advisor-dashboard';
           userType = 'advisor';
         } else if (userRole === 'consultant') {
-          redirectTo = '/consultant-dashboard.html';  // ✅ Consultant-specific dashboard
+          redirectTo = 'https://app.growthmanagerpro.com/consultant-dashboard';
           userType = 'consultant';
         } else {
-          redirectTo = '/dashboard.html';
+          redirectTo = 'https://app.growthmanagerpro.com/dashboard';
           userType = 'admin';
         }
 
@@ -152,7 +152,7 @@ module.exports = async (req, res) => {
         role: 'client',
         type: 'client',
         permissions: PERMISSIONS.client,
-        redirectTo: '/client-dashboard.html'
+        redirectTo: 'https://app.growthmanagerpro.com/client-dashboard'
       }
     });
 
