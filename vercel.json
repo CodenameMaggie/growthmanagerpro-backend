@@ -1,5 +1,12 @@
 {
   "rewrites": [
+    { "source": "/login", "destination": "/login.html" },
+    { "source": "/signup", "destination": "/signup.html" },
+    { "source": "/signup-saas", "destination": "/signup-saas.html" },
+    { "source": "/signup-advisor", "destination": "/signup-advisor.html" },
+    { "source": "/signup-consultant", "destination": "/signup-consultant.html" },
+    { "source": "/signup-client", "destination": "/signup-client.html" },
+    { "source": "/signup-invited", "destination": "/signup-invited.html" },
     { "source": "/dashboard", "destination": "/dashboard.html" },
     { "source": "/advisor-dashboard", "destination": "/advisor-dashboard.html" },
     { "source": "/client-dashboard", "destination": "/client-dashboard.html" },
