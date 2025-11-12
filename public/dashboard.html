@@ -797,13 +797,13 @@
     
     <script>
     (function() {
-        if (!AuthHelper.protectPage('advisor-dashboard.html')) {
+        if (!AuthHelper.protectPage('dashboard.html')) {
             throw new Error('Unauthorized access');
         }
         AuthHelper.applyPermissions();
     })();
-    
-    const API_BASE = 'https://growthmanagerpro-backend.vercel.app';
+
+    const API_BASE = 'https://app.growthmanagerpro.com';
 
     const dashboardData = {
         tasks: [],

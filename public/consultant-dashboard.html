@@ -614,7 +614,7 @@
                 
                 // Get clients assigned to this consultant
                 const response = await fetch(
-                    `https://growthmanagerpro-backend.vercel.app/api/users?tenant_id=${currentTenantId}`,
+                    `https://app.growthmanagerpro.com/api/users?tenant_id=${currentTenantId}`,
                     {
                         headers: {
                             'X-Tenant-ID': currentTenantId
@@ -685,7 +685,7 @@
                 
                 // Get all users to count clients
                 const usersResponse = await fetch(
-                    `https://growthmanagerpro-backend.vercel.app/api/users?tenant_id=${currentTenantId}`,
+                    `https://app.growthmanagerpro.com/api/users?tenant_id=${currentTenantId}`,
                     {
                         headers: {
                             'X-Tenant-ID': currentTenantId
@@ -702,7 +702,7 @@
 
                 // Get deals to count contracts
                 const dealsResponse = await fetch(
-                    `https://growthmanagerpro-backend.vercel.app/api/deals?tenant_id=${currentTenantId}`,
+                    `https://app.growthmanagerpro.com/api/deals?tenant_id=${currentTenantId}`,
                     {
                         headers: {
                             'X-Tenant-ID': currentTenantId
@@ -745,7 +745,7 @@
             try {
                 // Get recent prospects/deals activity
                 const response = await fetch(
-                    `https://growthmanagerpro-backend.vercel.app/api/prospects?tenant_id=${currentTenantId}`,
+                    `https://app.growthmanagerpro.com/api/prospects?tenant_id=${currentTenantId}`,
                     {
                         headers: {
                             'X-Tenant-ID': currentTenantId
