@@ -859,7 +859,12 @@
         updateConnectionStatus('loading');
 
         try {
-            const response = await fetch(`${API_BASE}/api/dashboard`);
+            // Add tenant_id to request using AuthHelper
+            const { url, options } = AuthHelper.addTenantToRequest(
+                `${API_BASE}/api/dashboard`,
+                { method: 'GET' }
+            );
+            const response = await fetch(url, options);
             
             if (!response.ok) {
                 throw new Error(`API returned ${response.status}: ${response.statusText}`);
