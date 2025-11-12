@@ -1,6 +1,18 @@
 // auth-helper.js - Enhanced authentication helper with tenant context
 // This integrates authentication, permissions, AND multi-tenant support
 
+// Clear corrupted sessions
+const storedUser = localStorage.getItem('user');
+if (storedUser) {
+  const user = JSON.parse(storedUser);
+  if (!user.tenant_id) {
+    console.log('[Auth] Clearing corrupted session without tenant_id');
+    localStorage.removeItem('user');
+    sessionStorage.clear();
+    window.location.href = '/login.html';
+  }
+}
+
 const AuthHelper = {
   // Supabase client
   supabaseClient: null,
