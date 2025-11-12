@@ -88,6 +88,7 @@ module.exports = async (req, res) => {
             full_name: user.full_name,
             role: userRole,
             type: userType,
+            tenant_id: user.tenant_id,
             permissions: PERMISSIONS[userRole] || PERMISSIONS.admin,
             redirectTo: redirectTo
           }
@@ -151,6 +152,7 @@ module.exports = async (req, res) => {
         company: client.company,
         role: 'client',
         type: 'client',
+        tenant_id: client.tenant_id,
         permissions: PERMISSIONS.client,
         redirectTo: 'https://app.growthmanagerpro.com/client-dashboard'
       }
